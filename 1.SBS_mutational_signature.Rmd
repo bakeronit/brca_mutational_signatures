@@ -1,0 +1,19 @@
+---
+title: "Substitution mutational signatures"
+output: github_document
+---
+
+```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(BSgenome.Hsapiens.UCSC.hg19)
+library(MutationalPatterns)
+knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.path = "figures/")
+hg19 <- BSgenome.Hsapiens.UCSC.hg19
+```
+
+
+```{r, warning=FALSE}
+read_vcfs_as_granges("data/Nones/vcfs/snv/FBC013587.snv.vcf","aa",hg19, type="snv", predefined_dbs_mbs = TRUE)
+```
+

@@ -1,0 +1,28 @@
+---
+title: "Microhomology in deletion"
+output: github_document
+---
+
+```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.path = "figures/")
+source("scripts/hrdetect/flank_indels.R")
+```
+
+
+**Table 1: Indel microhomology of 78 familial breast cancer cases in Nones et al 2019**
+
+```{r nones_del-microhomo, warning=FALSE}
+cal_del_homo <- function(vcf) {
+  sample_id <- basename(vcf) %>% str_remove(".indel.vcf")
+  get_flanking_sequence(vcf) %>% microhomology_summary() %>%
+  summarise(deletion_microhomology_count = sum(is_microhomology), deletion_count = n()) %>%
+  mutate(deletion_microhomology_proportion = if_else(deletion_count == 0, 0, deletion_microhomology_count / deletion_count)) %>% 
+  add_column(sample=sample_id)
+}
+
+#microhomo_nones <- list.files("data/Nones/vcfs/indel", pattern = ".indel.vcf", full.names = T) %>% map_df(cal_del_homo)
+#microhomo_nones %>% write_tsv("data/Nones/microhomology.txt")
+read_tsv("data/Nones/microhomology.txt") %>% knitr::kable()
+```
