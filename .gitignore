@@ -1,5 +1,6 @@
 .Rproj.user
 .Rhistory
+.gitconfig
 .RData
 .Ruserdata
 data/**
