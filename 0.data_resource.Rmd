@@ -17,7 +17,7 @@ source("scripts/utils.R")
 
 **1. Nones et al 2019**
 
-This dataset composed of tumour/normal WGS data of 78 familial breast cancer patients. The clinical status of these samples are:
+This dataset composed of tumour/normal WGS data of 78 familial breast cancer patients. The clinical status identified in this paper of these samples are:
 
 ```{r prepare-table}
 meta_data <- read_excel("data/Nones/Supplementary_Table1.xlsx",skip = 1, col_names = TRUE)
@@ -35,6 +35,8 @@ meta_df$field <- factor(meta_df$field,levels = c("BRCA_status","Gender","Age Gro
 meta_df$Donor <- factor(meta_df$Donor,levels = meta_df$Donor %>% unique %>% rev)
 
 meta_data$BRCA_status %>% table() %>% knitr::kable()
+
+#saveRDS(meta_data,"meta_data.rds")
 ```
 
 
