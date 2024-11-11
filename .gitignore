@@ -4,3 +4,6 @@
 .RData
 .Ruserdata
 data/**
+backup/**
+caches/**
+*.Rproj

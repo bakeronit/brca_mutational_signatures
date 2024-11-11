@@ -1,0 +1,171 @@
+---
+title: "Data resources"
+output: github_document
+---
+
+```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(data.table)
+library(vcfR)
+library(RColorBrewer)
+source("scripts/plot_utils.R")
+cohort_labbeller <- c("familial"="Familial Breast","tcga"="TCGA-BRCA", "magic"="MAGIC","qimprove"="Q-IMPROvE")
+knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2)
+```
+
+In this analysis, we included whole-genome sequencing (WGS) data of pairs of primary tumour and normal blood (germline) samples from breast cancer patients in four study cohorts. After filtering samples with low quality and sequencing depth, we had 350 tumours from:
+
+- familial breast cancer (N=77; Nones 2019)
+
+- TCGA-BRCA (N=96; cite)
+
+- MAGIC (N=136; De Silva et al. MJA 2023 ) -
+
+- Q-IMPROvE (N=41; 10.5694/mja2.51900)
+
+These datasets were used to call somatic variants from HRD prediction and to call germline variants for germline BRCA1 and BRCA2 classification. 
+
+All samples were processed with a uniform pipeline and wWe applied the dual calling pipeline for analysing WGS data of tumour samples with matched germline samples to identify somatic SNV and indel changes. Specifically, we aligned the short-read sequencing reads to the human genome assembly (GRCh38) using BWA, and high confident somatic SNV were identified as the intersect of post-filtered output of qSNP (cite) and GATK HaplotypeCaller (cite). Short insertion and deletions (1-50bp) were called with the GATK HaplotyperCaller. Mutations were annotated with qannotate and SnpEff to identify somatic-specific mutations and filter mutations located within 6 base pairs of a homopolymer region.
+
+
+```{r, message=FALSE}
+# load grafli report
+df_none2019 <- read_csv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/Simpson_-_FamilialBreast_SomaticReport_GRCh38_77.csv") |> filter(!is.na(ascatAnalysis)) |> 
+  rename("sample_id"=donorPublicationID)
+
+uuid_tsv <- read_tsv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/uuid_case.txt",col_names = c("uuid","sample_id"))
+df_tcga <- read_csv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/TCGA_-_breast_cancer_SomaticReport_GRCh38.csv") |> filter(!is.na(ascatAnalysis)) |> 
+  left_join(uuid_tsv, by=c("donorSubmittedWithID"="uuid")) 
+
+df_magic <- read_csv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/Waddell_-_Magic_WGS_StudySomaticReport.csv.139") |> filter(!is.na(ascatAnalysis)) |> rename("sample_id"=donorSubmittedWithID, "tumour_id"=testSampleLabel)
+
+
+##  A single tumour had two germline controls as they were testing different kits, remove "collectedsample:4a6e39fd-4e92-496d-a1ce-98b1a9340d8c"
+df_qimprove <- read_tsv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/GenomiQa_-_qimprove_Somatic_Report_GRCh38_for_jia_no_recurrance.tsv") |> 
+  filter(! controlSampleIRI=="collectedsample:4a6e39fd-4e92-496d-a1ce-98b1a9340d8c") |> add_column(studyLabel="qimprove") |> rename("sample_id"=patientLabel, "tumour_id"=testSampleLabel)
+```
+
+After removing samples with less then 20x depth in tumour sample, we only keep the primary tumour from each patient.
+
+```{r, fig.width=9.2, fig.height=4}
+extra_tumours <- c("QIPAH006_20230927_0012", "QIPAH011_20230927_0017", "QIPAH013_20230927_0029", "QIPAH002_20230927_0023","2020_118T2")
+depth_df <- rbind(read_tsv("../0.data_resource/GRCh38/sequencing_depth/nones.depth.txt", col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="familial"),
+                  read_tsv("../0.data_resource/GRCh38/sequencing_depth/tcga.depth.txt", col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="tcga"),
+                  read_tsv("../0.data_resource/GRCh38/sequencing_depth/magic.depth.txt", col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="magic"),
+                  read_tsv("../0.data_resource/GRCh38/sequencing_depth/qimprove.depth.txt",col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="qimprove")
+                  ) |> 
+  separate_wider_delim(sample, delim = ".", names = c("sample_id","tumour_id"),too_few = "align_start") |> 
+  filter(t_depth>=20, !tumour_id %in% extra_tumours) |> select(-tumour_id)
+
+sample_depth_order <- depth_df |> arrange(desc(t_depth)) |> pull(sample_id)
+
+depth_df |> mutate(n_depth=-n_depth, sample_id=factor(sample_id,levels=sample_depth_order), cohort=factor(cohort,levels=c("familial","tcga","magic","qimprove"))) |>
+  pivot_longer(c(t_depth,n_depth)) |> 
+  ggplot(aes(x=sample_id,y=value,fill=name)) + 
+  geom_col(alpha=.5) + 
+  facet_grid(~cohort, scale="free_x", space = "free_x", labeller = labeller(cohort=cohort_labbeller)) + 
+  geom_hline(yintercept = c(30,-30)) + 
+  scale_y_continuous(breaks = c(-50,0,50,100), labels=c("50x","0","50x","100x"))+
+  theme_Publication()+
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  labs(x="",y="Sequencing depth",fill="") + 
+  scale_fill_manual(values=c("#F0AB00", "#2A6EBB"), labels=c("Normal", "Tumour"))
+
+#low_depth_samples <- depth_df |> filter(t_depth<15) |> pull(sample)
+
+valid_samples <- depth_df |> pull(sample_id)
+
+#ggsave("figures/supplementary_fig1.png",width = 9,height = 4)
+```
+
+A figure showing the tumour purity scores, TMB in cohorts.
+
+```{r, fig.width=9.6, fig.height=5.5, warning=FALSE, message=FALSE}
+df_all <- rbind(df_none2019 |> select(studyLabel,sample_id,ascatPurityScore,TMB_nonSyn),
+      df_tcga |> select(studyLabel,sample_id, ascatPurityScore,TMB_nonSyn), 
+      df_magic |> select(studyLabel,sample_id,ascatPurityScore,TMB_nonSyn),
+      df_qimprove |> select(studyLabel, sample_id, ascatPurityScore,TMB_nonSyn) ) |> 
+  mutate(cohort=case_when(studyLabel=="Simpson_-_FamilialBreast" ~ "familial",
+                          studyLabel=="TCGA_-_breast_cancer" ~ "tcga",
+                          studyLabel=="Waddell_-_Magic_WGS" ~ "magic",
+                          TRUE ~ studyLabel),
+        cohort=factor(cohort,levels=c("familial","tcga","magic","qimprove"))) |> 
+  mutate(sample_id = str_split_i(sample_id,"\\.",i=1))
+
+df_all |> pivot_longer(c(ascatPurityScore,TMB_nonSyn)) |> 
+  mutate(name=factor(name,levels=c("ascatPurityScore","TMB_nonSyn"),labels=c("Tumour purity","Tumour mutation burden (TMB)"))) |> 
+  ggplot(aes(x=cohort,y=value)) + 
+  geom_violin() + geom_boxplot(width=0.1) +
+  scale_x_discrete(labels=cohort_labbeller) +
+  facet_wrap(~name, scales = "free_y") + 
+  labs(x="",y="Scores") + theme_Publication()
+
+df_all |> 
+  group_by(cohort) |> 
+  summarise(mean_purity = mean(ascatPurityScore), min=min(ascatPurityScore), max=max(ascatPurityScore)) |> knitr::kable()
+
+#ggsave("figures/supplementary_fig2.png", width = 9.6, height = 4.5)
+```
+ 
+ 
+ 
+A figure showing the number of snvs and indels in each cohort.
+
+```{r, fig.width=9.2, fig.height=4.6, message=FALSE, warning=FALSE, results='hide'}
+summarise_vcfs <- function(pdir, sample) {
+  snv_file <- file.path("data/GRCh38",pdir,"snvs",paste0(sample,".snv.vcf.gz"))
+  indel_file <- file.path("data/GRCh38",pdir,"indels",paste0(sample,".indel.vcf.gz"))
+  n_snv <- read.vcfR(snv_file) |> nrow()
+  n_indel <- read.vcfR(indel_file) |> nrow()
+  df <- data.frame(snv=n_snv,indel=n_indel)
+  df
+}
+
+
+df_vcf_all <- rbind(
+  df_none2019$sample_id |> set_names() |> map(\(x) summarise_vcfs("Nones2019",x)) |> list_rbind(names_to = "sample_id"),
+  df_tcga |> filter(sample_id %in% valid_samples) |> pull(sample_id) |> set_names() |> map(\(x) summarise_vcfs("TCGA_BRCA",x)) |> list_rbind(names_to = "sample_id"),
+  df_magic |> filter(sample_id %in% valid_samples, !tumour_id %in% extra_tumours)  |> unite(sample_id, c("sample_id","tumour_id"),sep = ".") |> pull(sample_id) |> set_names(\(x) str_split_i(x,"\\.",i=1)) |> map(\(x) summarise_vcfs("MAGIC",x)) |> list_rbind(names_to = "sample_id"),
+  df_qimprove |> filter(sample_id %in% valid_samples, !tumour_id %in% extra_tumours)  |> unite(sample_id, c("sample_id","tumour_id"),sep = ".") |> pull(sample_id) |> set_names(\(x) str_split_i(x,"\\.",i=1)) |> map(\(x) summarise_vcfs("Qimprove",x)) |> list_rbind(names_to = "sample_id") 
+  ) 
+
+df_vcf_all |> mutate(cohort=case_when(grepl("FBC",sample_id) ~ "familial",
+                                                       grepl("TCGA",sample_id) ~ "tcga",
+                                                       grepl("MAGIC",sample_id) ~ "magic",
+                                                       grepl("GQ",sample_id) ~ "qimprove"), 
+                                      cohort=factor(cohort,levels=c("familial","tcga","magic","qimprove")),
+                                      sampl_id=factor(sample_id,levels=sample_depth_order)) |> 
+  pivot_longer(c(snv,indel)) |> 
+  mutate(name=factor(name,levels=c("snv","indel"))) |> 
+  ggplot(aes(x=sample_id,y=value/1000)) + geom_col() + 
+  facet_grid(name~cohort, scales = "free", space="free_x", labeller = labeller(cohort=cohort_labbeller, name=c("snv"="SNV", "indel"="Indel"))) + 
+  scale_y_continuous(labels = \(x) ifelse(x==0,x,paste0(x,"k"))) + 
+  theme_Publication() + labs(x="Sample",y="Count") + 
+  theme(axis.ticks.x = element_blank(), axis.text.x = element_blank()) 
+
+#ggsave("figures/supplementary_fig3.png",dpi = 300,width = 9.2,height = 4.6)
+
+```
+
+```{r, fig.width=9.2, fig.height=3.6, warning=FALSE}
+sv_df <- list.files("data/GRCh38", pattern = "*.sv.tsv", full.names = TRUE, recursive = TRUE) |> 
+  set_names(\(x) basename(x) |> str_remove(".sv.tsv")) |> map(\(x) read_tsv(x,col_types = list(col_character(),col_double()))) |> 
+  list_rbind(names_to = "sample") |> mutate(sv_len=ifelse(is.na(sv_len),0, sv_len)) |> 
+  mutate(cohort=case_when(grepl("FBC",sample) ~ "familial",
+                          grepl("TCGA",sample) ~ "tcga",
+                          grepl("MAGIC",sample) ~ "magic",
+                          grepl("GQ",sample) ~"qimprove"),
+         cohort=factor(cohort,levels=c("familial","tcga","magic","qimprove"))) |> 
+  separate_wider_delim(sample, delim = ".", names = c("sample_id","tumour_id"),too_few = "align_start") |> 
+  filter(!tumour_id %in% extra_tumours) |> 
+  mutate(sample_id=factor(sample_id,levels=sample_depth_order))
+
+sv_df |> ggplot(aes(x=sample_id,fill=sv_type)) + geom_bar(stats="count") + 
+  facet_grid(~cohort, scales = "free_x",space = "free_x", labeller = labeller(cohort=cohort_labbeller)) + ylim(0,1000) +
+  scale_fill_manual(values = c("#386cb0","#f87f01","#7fc97f","#ef3b2c"), labels=c("DEL","INS/DUP","INV","TRA")) +
+  theme_Publication() + labs(x="Sample",y="SV count", fill="") + 
+  theme(axis.ticks.x = element_blank(), axis.text.x = element_blank(), legend.position = "bottom")
+
+#ggsave("figures/supplementary_fig4.png",dpi = 300,width = 9.2,height = 3.6)
+```

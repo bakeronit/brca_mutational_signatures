@@ -1,0 +1,133 @@
+---
+title: "HRD prediction using CHORD"
+output: github_document
+---
+
+```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(CHORD)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(RColorBrewer)
+library(here)
+
+source("scripts/plot_utils.R")
+
+cohort_levels <- c("Familial Breast","TCGA","MAGIC","Q-IMPROvE")
+extra_tumours <- c("QIPAH006_20230927_0012", "QIPAH011_20230927_0017", "QIPAH013_20230927_0029", "QIPAH002_20230927_0023","2020_118T2")
+knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path ="cache/")
+```
+
+
+```{r}
+snv_files <- list.files("data/GRCh38", pattern = "*.snv.vcf$",recursive = TRUE, full.names = TRUE) |> set_names(\(x) basename(x) |> str_remove(".snv.vcf"))
+indel_files <- list.files("data/GRCh38", pattern = "*.indel.vcf$",recursive = TRUE, full.names = TRUE) |> set_names(\(x) basename(x) |> str_remove(".indel.vcf"))
+sv_df_list <- list.files("data/GRCh38", ".sv.tsv", recursive = TRUE,full.names = TRUE) |>  set_names(\(x) basename(x) |> str_remove(".sv.tsv")) |>  map(data.table::fread)
+```
+
+```{r cache=TRUE, eval=FALSE}
+df_chord <- names(snv_files)|> 
+  map_df(\(x) extractSigsChord(vcf.snv=snv_files[x], vcf.indel=indel_files[x], df.sv = sv_df_list[[x]], sample.name = x, ref.genome = BSgenome.Hsapiens.UCSC.hg38) |> as.data.frame()) |> 
+  chordPredict(do.bootstrap = T, verbose = F)
+
+write_tsv(df_chord, "results/chord_hrdprediction_355.tsv")
+```
+
+```{r}
+df_chord <- read_tsv("results/chord_hrdprediction_355.tsv")
+df_hrd <- df_chord[1:6] |> mutate(cohort=case_when(
+  startsWith(sample, "MAGIC") ~ "MAGIC",
+  startsWith(sample, "FBC") ~ "Familial Breast",
+  startsWith(sample, "TCGA") ~ "TCGA",
+  startsWith(sample, "GQ") ~ "Q-IMPROvE",
+  TRUE ~ "Unknown"
+),
+  hr_status = ifelse(hr_status=="HR_deficient", "HRD", "non-HRD")) |> 
+  separate_wider_delim(sample,".", names = c("sample_id","tumour_id"), too_few = "align_start") |> 
+  filter(!tumour_id %in% extra_tumours) |> select(-tumour_id) |> 
+  arrange(desc(p_hrd) ) |> mutate(sample_id=factor(sample_id,levels=sample_id),
+                                  cohort=factor(cohort, levels=cohort_levels))
+```
+
+```{r chord_fig1, fig.width=4, fig.height=4}
+ggplot(df_hrd, aes(x=sample_id, y=p_hrd)) + geom_point(alpha=.6, color="#3B4992") + 
+  geom_hline(yintercept = 0.5, color="grey", lty=2, linewidth=1) +
+  theme_Publication() + labs(x="Tumour samples",y="HRD probability (CHORD)") + 
+  theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+```{r chord_fig2, fig.height=4, fig.width=9}
+ggplot(df_hrd, aes(x=sample_id, y=p_hrd)) + geom_point(alpha=.6, color="#3B4992") + 
+  facet_grid(~cohort, scales = "free_x", space = "free_x") +
+  geom_hline(yintercept = 0.5, color="grey", lty=2, linewidth=1) +
+  theme_Publication()  + labs(x="Tumour samples",y="HRD probability (CHORD)") + 
+  theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+```{r chord_fig3, fig.width=7, fig.height=4.5, warning=FALSE}
+df_hrd |> 
+  mutate(cohort=case_when(grepl("FBC",sample_id) ~ "Familial Breast",
+                                     grepl("TCGA",sample_id) ~ "TCGA",
+                                     grepl("MAGIC",sample_id) ~ "MAGIC",
+                                     TRUE ~ "Q-IMPROvE"),
+         cohort=factor(cohort, levels=c("Familial Breast","TCGA","MAGIC","Q-IMPROvE"))) |> 
+  ggplot(aes(x=hr_status,fill=hr_status)) + geom_bar() + 
+  geom_text(stat='count', aes(label=..count..), vjust=-.1) +
+  facet_grid(~cohort) + ylim(0,130) +
+  theme_Publication() + labs(x="", y= "Number of samples", fill="HR status") + scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+```{r chord_fig4, fig.height=4.5, fig.width=4.8}
+df_tmp <- df_hrd |> group_by(cohort) |> mutate(total=n()) |> add_count(hr_status) |> filter(hr_status=="HRD") 
+
+ggplot() + geom_bar(data=df_hrd, aes(x=cohort, fill=hr_status),stat = "count") + 
+  geom_text(data=df_tmp, aes(x=cohort, y=total, label=paste0(n,"/",total)), vjust=-.1, color="black") +
+  scale_fill_manual(values=c("#0073C2","#EFC000"))+ 
+  theme_Publication() + labs(x="",y="Number of samples", fill="HR status") + 
+  theme(legend.position = "bottom")  
+```
+
+```{r chord_fig5, warning=FALSE, fig.width=4.8, fig.height=4.5}
+my_blues <- brewer.pal(3,"Blues") |> rev()
+df_hrd |> filter(hr_status=="HRD") |> 
+  ggplot(aes(x=cohort,fill=hrd_type)) + geom_bar() + scale_fill_manual(values=my_blues, labels=c("BRCA1","BRCA2","Undetermined")) +
+  geom_text(aes(label=..count..),stat = "count", vjust =1.5,position = "stack", size=3.2) + 
+  theme_Publication() + labs(x="",y="Number of samples", fill="HRD type") + 
+  theme(legend.position = "bottom") 
+```
+
+## CHORD HRD prediction after FFPE impact correction
+```{r, cache=TRUE}
+snv_files <- list.files("data/GRCh38/MAGIC", pattern = "*.snv.vcf$",recursive = TRUE, full.names = TRUE) |> set_names(\(x) basename(x) |> str_remove(".snv.vcf"))
+indel_files <- list.files("data/GRCh38/MAGIC", pattern = "*.indel.vcf$",recursive = TRUE, full.names = TRUE) |> set_names(\(x) basename(x) |> str_remove(".indel.vcf"))
+sv_df_list <- list.files("data/GRCh38/MAGIC", ".sv.tsv", recursive = TRUE,full.names = TRUE) |>  set_names(\(x) basename(x) |> str_remove(".sv.tsv")) |>  map(data.table::fread)
+
+magic_chord_context <- names(snv_files)|> map_df(\(x) extractSigsChord(vcf.snv=snv_files[x], vcf.indel=indel_files[x], df.sv = sv_df_list[[x]], sample.name = x, ref.genome = BSgenome.Hsapiens.UCSC.hg38) |> as.data.frame())
+
+corrected_mutation <- read_tsv("/mnt/backedup/home/jiaZ/working/bioprojects/breast_cancer_tms_Amanda2023/1.denovo_extraction/data/GRCh38/MAGIC.ffpe_unrepaired_corrected.extractor_sorted.matrix.txt")
+
+magic_chord_context[,1:96] <- corrected_mutation[match(colnames(magic_chord_context[,1:96]), corrected_mutation$MutationType),] |> 
+  column_to_rownames("MutationType") |> t() |> as.data.frame()
+
+chord_magic_ffpe <- chordPredict(magic_chord_context, do.bootstrap=T, verbose=F) |> select(sample, p_hrd) |> separate_wider_delim(sample,".", names = c("sample_id","tumour_id")) |> 
+  filter(!tumour_id %in% extra_tumours) |> select(-tumour_id)
+
+
+chord_magic <- df_chord |> filter(startsWith(sample,"MAGIC")) |> select(sample, p_hrd) |> separate_wider_delim(sample,".", names=c("sample_id","tumour_id")) |> 
+  filter(!tumour_id %in% extra_tumours) |> select(-tumour_id)
+```
+
+```{r chord_fig6, fig.height=4, fig.width=5}
+inner_join(chord_magic, chord_magic_ffpe, by="sample_id") |> 
+  dplyr::rename("Original"=p_hrd.x,"FFPE-corrected"=p_hrd.y) |> 
+  arrange(desc(Original)) |> 
+  mutate(sample_id=factor(sample_id, levels=sample_id)) |> 
+  pivot_longer(-sample_id) |> mutate(name=factor(name, levels=c("Original", "FFPE-corrected"))) |> 
+  ggplot(aes(x=sample_id,y=value, color=name)) + 
+  geom_point(alpha=.4, size=1.6) +
+  geom_hline(yintercept = 0.5, color="grey", lty=2, linewidth=1) +
+  labs(x="Tumour samples",y="HRD Probability (CHORD)", color="") + theme_Publication() + 
+  scale_color_manual(values=c("#3B4992", "#EE0000")) +
+  theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x=element_blank())
+  
+```
