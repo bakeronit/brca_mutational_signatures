@@ -11,7 +11,7 @@ library(vcfR)
 library(RColorBrewer)
 source("scripts/plot_utils.R")
 cohort_labbeller <- c("familial"="Familial Breast","tcga"="TCGA-BRCA", "magic"="MAGIC","qimprove"="Q-IMPROvE")
-knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2)
+knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path ="cache/")
 ```
 
 In this analysis, we included whole-genome sequencing (WGS) data of pairs of primary tumour and normal blood (germline) samples from breast cancer patients in four study cohorts. After filtering samples with low quality and sequencing depth, we had 350 tumours from:
@@ -20,7 +20,7 @@ In this analysis, we included whole-genome sequencing (WGS) data of pairs of pri
 
 - TCGA-BRCA (N=96; cite)
 
-- MAGIC (N=136; De Silva et al. MJA 2023 ) -
+- MAGIC (N=136; De Silva et al. MJA 2023 ) 
 
 - Q-IMPROvE (N=41; 10.5694/mja2.51900)
 
@@ -48,7 +48,7 @@ df_qimprove <- read_tsv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.da
 
 After removing samples with less then 20x depth in tumour sample, we only keep the primary tumour from each patient.
 
-```{r, fig.width=9.2, fig.height=4}
+```{r supplementary_fig1, fig.width=9, fig.height=4}
 extra_tumours <- c("QIPAH006_20230927_0012", "QIPAH011_20230927_0017", "QIPAH013_20230927_0029", "QIPAH002_20230927_0023","2020_118T2")
 depth_df <- rbind(read_tsv("../0.data_resource/GRCh38/sequencing_depth/nones.depth.txt", col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="familial"),
                   read_tsv("../0.data_resource/GRCh38/sequencing_depth/tcga.depth.txt", col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="tcga"),
@@ -75,13 +75,11 @@ depth_df |> mutate(n_depth=-n_depth, sample_id=factor(sample_id,levels=sample_de
 #low_depth_samples <- depth_df |> filter(t_depth<15) |> pull(sample)
 
 valid_samples <- depth_df |> pull(sample_id)
-
-#ggsave("figures/supplementary_fig1.png",width = 9,height = 4)
 ```
 
 A figure showing the tumour purity scores, TMB in cohorts.
 
-```{r, fig.width=9.6, fig.height=5.5, warning=FALSE, message=FALSE}
+```{r supplementary_fig2, fig.width=9.6, fig.height=4.5, warning=FALSE, message=FALSE}
 df_all <- rbind(df_none2019 |> select(studyLabel,sample_id,ascatPurityScore,TMB_nonSyn),
       df_tcga |> select(studyLabel,sample_id, ascatPurityScore,TMB_nonSyn), 
       df_magic |> select(studyLabel,sample_id,ascatPurityScore,TMB_nonSyn),
@@ -105,14 +103,13 @@ df_all |>
   group_by(cohort) |> 
   summarise(mean_purity = mean(ascatPurityScore), min=min(ascatPurityScore), max=max(ascatPurityScore)) |> knitr::kable()
 
-#ggsave("figures/supplementary_fig2.png", width = 9.6, height = 4.5)
 ```
  
  
  
 A figure showing the number of snvs and indels in each cohort.
 
-```{r, fig.width=9.2, fig.height=4.6, message=FALSE, warning=FALSE, results='hide'}
+```{r supplementary_fig3, fig.width=9.2, fig.height=4.6, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
 summarise_vcfs <- function(pdir, sample) {
   snv_file <- file.path("data/GRCh38",pdir,"snvs",paste0(sample,".snv.vcf.gz"))
   indel_file <- file.path("data/GRCh38",pdir,"indels",paste0(sample,".indel.vcf.gz"))
@@ -143,12 +140,9 @@ df_vcf_all |> mutate(cohort=case_when(grepl("FBC",sample_id) ~ "familial",
   scale_y_continuous(labels = \(x) ifelse(x==0,x,paste0(x,"k"))) + 
   theme_Publication() + labs(x="Sample",y="Count") + 
   theme(axis.ticks.x = element_blank(), axis.text.x = element_blank()) 
-
-#ggsave("figures/supplementary_fig3.png",dpi = 300,width = 9.2,height = 4.6)
-
 ```
 
-```{r, fig.width=9.2, fig.height=3.6, warning=FALSE}
+```{r supplementary_fig4, fig.width=9.2, fig.height=3.6, warning=FALSE}
 sv_df <- list.files("data/GRCh38", pattern = "*.sv.tsv", full.names = TRUE, recursive = TRUE) |> 
   set_names(\(x) basename(x) |> str_remove(".sv.tsv")) |> map(\(x) read_tsv(x,col_types = list(col_character(),col_double()))) |> 
   list_rbind(names_to = "sample") |> mutate(sv_len=ifelse(is.na(sv_len),0, sv_len)) |> 
@@ -166,6 +160,4 @@ sv_df |> ggplot(aes(x=sample_id,fill=sv_type)) + geom_bar(stats="count") +
   scale_fill_manual(values = c("#386cb0","#f87f01","#7fc97f","#ef3b2c"), labels=c("DEL","INS/DUP","INV","TRA")) +
   theme_Publication() + labs(x="Sample",y="SV count", fill="") + 
   theme(axis.ticks.x = element_blank(), axis.text.x = element_blank(), legend.position = "bottom")
-
-#ggsave("figures/supplementary_fig4.png",dpi = 300,width = 9.2,height = 3.6)
 ```
