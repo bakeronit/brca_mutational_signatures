@@ -5,5 +5,5 @@
 .Ruserdata
 data/**
 backup/**
-caches/**
+cache/**
 *.Rproj
