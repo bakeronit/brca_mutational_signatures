@@ -7,6 +7,7 @@ output: github_document
 library(tidyverse)
 library(RColorBrewer)
 library(here)
+library(patchwork)
 
 source("scripts/plot_utils.R")
 
@@ -43,13 +44,14 @@ df_hrd |> filter(hr_status_combined=="Inconsistent") |> left_join(hrdsum) |> sel
 
 There are five samples had inconsistent HR status perdition from two methods.
 
-```{r hrd_comparison_fig1, fig.width=6.2, fig.height=4.5}
-df_hrd |> mutate(hr_status_combined=factor(hr_status_combined,levels=c("HRD","non-HRD","Inconsistent"))) |> 
+```{r hrd_comparison_fig1, fig.width=6.8, fig.height=5}
+p1 <- df_hrd |> mutate(hr_status_combined=factor(hr_status_combined,levels=c("HRD","non-HRD","Inconsistent"))) |> 
   ggplot(aes(x=CHORD,y=HRDetect, color=hr_status_combined)) + 
   geom_point(size=2.5, alpha=.6) + scale_color_manual(values=c("#0073C2","#EFC000","grey")) + 
   ggrepel::geom_label_repel(data=df_hrd |> filter(hr_status_combined=="Inconsistent"), aes(label=sample_id), size=1.6, color="black") + 
   geom_vline(xintercept = 0.5, color="darkgrey", lty=2, linewidth=1) + geom_hline(yintercept=0.7, lty=2, linewidth=1, color="darkgrey") + 
   labs(x="CHORD",y="HRDetect", color="") + theme_Publication() + theme(panel.border = element_rect(colour = 'black'))
+p1
 ```
 
 Notably, four out of these five samples were excluded by germline classification, and `TCGA-A7-A13D` is classified as brca_negative which is consistent with CHORD result.
@@ -60,11 +62,13 @@ Notably, four out of these five samples were excluded by germline classification
 ```{r hrd_comparison_fig2, fig.height=4.5, fig.width=4.8}
 df_tmp <- df_hrd|> group_by(cohort) |> mutate(total=n()) |> add_count(hr_status_combined) |> filter(hr_status_combined=="HRD") 
 
-ggplot() + geom_bar(data=df_hrd |>  mutate(hr_status_combined=factor(hr_status_combined,levels=c("HRD","non-HRD","Inconsistent"))), aes(x=cohort, fill=hr_status_combined),stat = "count") + 
+p2 <- ggplot() + geom_bar(data=df_hrd |>  mutate(hr_status_combined=factor(hr_status_combined,levels=c("HRD","non-HRD","Inconsistent"))), aes(x=cohort, fill=hr_status_combined),stat = "count") + 
   geom_text(data=df_tmp, aes(x=cohort, y=total, label=paste0(n,"/",total)), vjust=-.1, color="black") +
   scale_fill_manual(values=c("#0073C2","#EFC000","grey"))+ 
   theme_Publication() + labs(x="",y="Number of samples", fill="HR status") + 
   theme(legend.position = "bottom")  
+
+p2 
 ```
 
 For samples that are consistently predicted as HRD, CHORD further classified them as BRCA1/2 type.
@@ -74,10 +78,15 @@ chord_brca12 <- chord_hrd |> separate_wider_delim(sample,".", names = c("sample_
   filter(!tumour_id %in% extra_tumours) |> select(sample_id, hrd_type) |> left_join(df_hrd)
 
 my_blues <- brewer.pal(3,"Blues") |> rev()
-chord_brca12 |> filter(hr_status_combined=="HRD") |> 
+p3 <- chord_brca12 |> filter(hr_status_combined=="HRD") |> 
   ggplot(aes(x=cohort,fill=hrd_type)) + geom_bar() + scale_fill_manual(values=my_blues, labels=c("BRCA1","BRCA2","Undetermined")) +
   #geom_text(aes(label=..count..),stat = "count", vjust =1.5,position = "stack", size=3.2) + 
   theme_Publication() + labs(x="",y="Number of samples", fill="HRD type") + 
   theme(legend.position = "bottom") 
+p3
+```
 
+```{r figure1, fig.height=9.8, fig.width=9.3}
+
+p1 / (p2 | p3) + plot_layout(heights = c(0.58,0.42), widths = c(1, 0.5, 0.5)) + plot_annotation(tag_levels = 'A')
 ```
