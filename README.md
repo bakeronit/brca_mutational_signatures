@@ -18,7 +18,7 @@ Scripts and R code used in the paper:
 
 ### Germline variants and BRCA1/2 classfication
 
-- \[\]
+- [Germline classification](6.germline_classification.Rmd)
 
 ### `sessionInfo`
 
