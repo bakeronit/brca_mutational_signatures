@@ -1,0 +1,272 @@
+---
+title: "Germline classification"
+output: github_document
+---
+
+```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(gt)
+library(ggh4x)
+library(ggparty)
+knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path = "cache/")
+```
+
+With the hypothesis that if tumour HRD profile can inform us about the pathogenicity of a germline mutation, we need to first classifify individuals as BRCA1/2_positive or BRCA_negative groups based on their germline variants.
+
+To stratify individuals, we first collect all germline mutations of each individual in 10 target genes including BRCA1, BRCA2, PALB2, BARD1, BRIP1, RAD51C, RAD51D, CHEK2, and ATM. The germline variant calls were obtain from our best-practice pipeline on HPC and each variant was annotated using `nanno` tool (better VEP from QIMR).
+
+A set of unique SNVs and indels from all samples were collected for curation.
+
+```bash
+cat *.filtered.tsv | \
+grep -v "#" | \
+cut --complement -f 5| \
+sort | uniq > BRCA.germline_snv.annotation.tsv
+```
+
+After curation, each variant was labbelled as A, B, C, D, E, F class as below:
+
+
+```{r}
+variant_class <- LETTERS[1:6]
+criteria <- c(
+  "Pathogenic or hot VUS in HR genes other than BRCA1/2, and also ATM, CHEK2",
+  "(cold) VUS in HR genes other than BRCA1/2, and also ATM, CHEK2",
+  "Benign/Likely benign variants in HR genes other than BRCA1/2, and also ATM, CHEK2",
+  "Pathogenic variants in BRCA1 or BRCA2",
+  "VUS in BRCA1 or BRCA2",
+  "Benign/Likely benign variants in BRCA1 and/or BRCA2"
+)
+
+num_of_variant <- read_tsv("../4.brca_classification/germline_mutation_classification.txt") |> count(Group) |> pull(n)
+
+tibble("Variant class" = variant_class, "Criteria" = criteria, "N"=num_of_variant) |> 
+  gt() |> tab_footnote(footnote=md("*Genes included: BRCA1, BRCA2, PALB2, BARD1 ,BRIP1, RAD51C, RAD51D, CHEK2, ATM*"))
+
+```
+
+Next, we went through each sample, and labelled them as BRCA1/2_positive or BRCA1/2_negative using [labbel_individual.py](scripts/labbel_individual.py). Furthermore, to avoid the noise from pathogenic variants of other genes, we excluded samples if P/LP variants of other genes (class A) or VUS of other genes(class B) were present in one. In addition, we separated individuals with VUS_BRCA (class E) variants but not others as the Additional group for further investigation. 
+
+```bash
+cut -f1,2,3,4,8,95 BRCA.germline_snvs.annotation_cf.txt > germline_mutation_classification.txt. # get chr, position, ref, alt, gene_name, Group(variat_class) columns from xlsx by CF.
+for file in *.filtered.tsv; do 
+  python labbel_individual.py $file >> sample_classification.txt
+done
+```
+
+We merged with this classification with thier tumour HRD profiles and generate a big table.
+
+```{r}
+extra_tumours <- c("2020_118T2","QIPAH006_20230927_0012","QIPAH011_20230927_0017","QIPAH013_20230927_0029","QIPAH002_20230927_0023")
+`%notin%` <- Negate(`%in%`)
+
+germline_df <- read_tsv("../4.brca_classification/sample_classification.txt",
+         col_names=c("sample_id","A","B","C","D","E","F","germline_classification","class_D_mutation","class_E_mutations","class_A_mutations","class_B_mutations")) 
+
+
+chord_df    <- read_tsv("results/chord_hrdprediction_355.tsv") |> select(sample,p_hrd,p_BRCA1,p_BRCA2,hr_status,hrd_type)
+hrdetect_df <- read_tsv("results/hrdetect_hrdprediction_355.tsv") |> select(sample, Probability)
+sigs_df     <- read_tsv("results/signature_tools_lib_sbs.355.tsv") |> column_to_rownames("sample") |> (\(x) x/rowSums(x))() |> rownames_to_column("sample") |> select(sample,Signature_3, Signature_8)
+hrdsum_df   <- read_tsv("results/hrdsum_355.tsv") |> rename("HRDsum" = `HRD-sum`, "LOH"=HRD, "TAI"=`Telomeric AI`)
+
+somatic_df <- inner_join(chord_df, hrdetect_df) |> 
+  inner_join( sigs_df) |> 
+  inner_join( hrdsum_df) |> 
+  mutate(cohort=case_when(startsWith(sample,"MAGIC")~"MAGIC",
+                          startsWith(sample,"FBC")~"Familial Breast",
+                          startsWith(sample,"TCGA")~"TCGA",
+                          TRUE~"Q-IMPROvE"),
+         tumour_id=ifelse(cohort %in% c("MAGIC","Q-IMPROvE"), str_split_i(sample,"\\.",i=2), sample),
+         sample_id=ifelse(cohort %in% c("MAGIC","Q-IMPROvE"), str_split_i(sample,"\\.",i=1), sample)) |> 
+  filter(!tumour_id  %in% extra_tumours) |> 
+  select(-c(sample, tumour_id)) |> 
+  select( cohort,sample_id,everything()) 
+```
+
+
+```{r}
+qc_df <- read_tsv("results/purity_tmb.tsv")
+df <- inner_join(qc_df, somatic_df, by="sample_id")  |> inner_join(germline_df) |> select(cohort, everything())
+#df |> write_tsv("results/brca_germline_clf_tumor_hrd.tsv")
+
+head(df, n=10) |> gt() |> 
+   tab_spanner(
+    label = md("**CHORD results**"),
+    columns = c(p_hrd:hrd_type)
+  ) |> 
+   tab_spanner(
+    label = md("**HRDetect results**"),
+    columns = c(Probability:Signature_8)
+  ) |> 
+  tab_spanner(
+    label = md("**HRsum results**"),
+    columns = c(LOH:HRDsum)
+  ) |> 
+   tab_spanner(
+    label = md("**Germline classification**"),
+    columns = c(A:class_B_mutations)
+  )
+```
+
+
+### A partition tree of the individual germline classification
+
+
+
+```{r Figure2, fig.height=8, fig.width=8.6, warning=FALSE}
+df <- read_tsv("results/brca_germline_clf_tumor_hrd.tsv") 
+df <- df |> mutate(hr_status_combined=case_when(Probability>=0.7 & hr_status=="HR_deficient"~"HRD", 
+                                      Probability<0.7 & hr_status=="HR_proficient" ~ "non-HRD", 
+                                      TRUE~"Inconsistent" ) )
+
+
+tree_df <- df |> select(A, B, C, D, C, E, F, sample_id, , hr_status_combined, germline_classification) |>  
+  filter(!hr_status_combined=="Inconsistent") |> 
+  mutate(has_A=ifelse(A>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_B=ifelse(B>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_C=ifelse(C>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_D=ifelse(D>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_E=ifelse(E>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_F=ifelse(F>0, "yes", "no") |> factor(levels=c("no","yes"))) |> 
+  select(has_A, has_B, has_C, has_D, has_C, has_E, has_F, germline_classification, sample_id, hr_status_combined) |> 
+  as.data.frame()
+
+sp_a <- partysplit(1L, breaks = 0)
+sp_d <- partysplit(4L, breaks = 0)
+sp_e <- partysplit(5L, breaks = 0)
+sp_b <- partysplit(2L, breaks = 0)
+
+sp_a <- partysplit(1L, index=c(1L,2L))
+sp_d <- partysplit(4L, index=c(1L,2L))
+sp_e <- partysplit(5L, index=c(1L,2L))
+sp_b <- partysplit(2L, index=c(1L,2L))
+
+pn <- partynode(1L, split = sp_a, kids = list(
+  partynode(3L, split = sp_d, kids = list(
+    partynode(5L, split = sp_e, kids = list(
+      partynode(7L, split = sp_b, kids = list(
+        partynode(9L, info = "BRCA1/2 negative"),
+        partynode(8L, info = "Excluded")
+      )),
+      partynode(6L, info = "Additional")
+    )),
+    partynode(4L, info = "BRCA1/2 postive")
+  )),
+  partynode(2L, info = "Excluded")
+))
+
+tree <- party(pn,
+            data = tree_df,
+            fitted = data.frame(
+              "(fitted)" = fitted_node(pn, data = tree_df),
+              "(response)" = tree_df$hr_status_combined,
+              check.names = FALSE),
+            terms = terms(hr_status_combined ~ ., data = tree_df)
+)
+
+
+ggparty(tree) +
+  geom_edge() +
+  geom_edge_label() +
+  geom_node_splitvar(fontface = "bold") +
+  geom_node_plot(gglist = list(geom_bar(aes(x = hr_status_combined, fill = hr_status_combined)),
+                               geom_text(stat='count', aes(x=hr_status_combined,label=..count..), vjust=0, size=2.6),
+                               theme_bw(),
+                               theme(axis.text.x = element_blank(), 
+                                     axis.ticks.x = element_blank(), 
+                                     panel.grid = element_blank()),
+                               scale_fill_manual(values=c("#0073C2","#EFC000")),
+                               ylab(""),
+                               xlab(""))) +
+  geom_node_label(aes(label = paste0(info, ", N = ", nodesize)),
+                  fontface = "bold",
+                  ids = "terminal",
+                  size = 3,
+                  # 0.01 nudge_y is enough to be above the node plot since a terminal
+                  # nodeplot's top (not center) is at the node's coordinates.
+                  nudge_y = 0.01) 
+
+```
+
+
+We also examed structrual variations (SVs) in samples using `DELLY`. The SVs in the 10 genes we listed before were extracted for curation, and those potential pathogenic or hot VUS in other genes excpete BRCA1/2 (class A), pathogenic variants in BRCA1/2 (class D) and VUS in BRCA1/2 (class E) were visually checked in IGV. 
+
+Eventually, this results in  7 SVs:
+
+```{r}
+read_tsv("../4.brca_classification/sv/real_sv.txt", col_names = c("chrom1","pos1","chrom2","pos2", "ID", "SV_type", "SV_len", "gene1", "gene2", "frequency","cohort","class")) |> 
+  gt()
+```
+
+After integrating SV results in individuals classification, 6 samples were affected by these real SVs, we then updated the germline classfication for these individuals 
+
+```{r}
+sv_df <- read_tsv("../4.brca_classification/sv/sample_pathSV.real.tsv", col_names = c("sample_id","pathSV"))
+sv_df |> gt()
+df2 <- df |> left_join(sv_df) |> 
+  mutate(SV_A = map_dbl(str_split(pathSV, ","), ~ sum(str_detect(., "^A"))),
+         SV_D = map_dbl(str_split(pathSV, ","), ~ sum(str_detect(., "^D"))),
+         SV_E = map_dbl(str_split(pathSV, ","), ~ sum(str_detect(., "^E")))) |> 
+  replace_na(list(SV_A=0, SV_D=0, SV_E=0)) |> 
+  mutate(A=ifelse(SV_A>0, A+SV_A, A),
+         D=ifelse(SV_D>0, D+SV_D, D),
+         E=ifelse(SV_E>0, E+SV_E, E)) |> 
+  select(-c(pathSV:SV_E))
+
+affected_samples <- sv_df |> pull(sample_id)
+df2 |> filter(sample_id %in% affected_samples) |> select(cohort,sample_id, hr_status_combined, A, B, C, D, E, F, germline_classification) |> 
+  mutate(updated_germline_classification=case_when(
+    A>0 ~ "exclude",
+    D>0 ~ "positive_brca1/2",
+    TRUE~ germline_classification
+  )) |> gt()
+```
+
+### Partitioin tree after integrating SVs.
+
+```{r Figure2.1, fig.height=8, fig.width=8.6, warning=FALSE}
+tree_df2 <- df2 |> select(A, B, C, D, C, E, F, sample_id, , hr_status_combined) |>  
+  filter(!hr_status_combined=="Inconsistent") |> 
+  mutate(has_A=ifelse(A>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_B=ifelse(B>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_C=ifelse(C>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_D=ifelse(D>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_E=ifelse(E>0, "yes", "no") |> factor(levels=c("no","yes")),
+         has_F=ifelse(F>0, "yes", "no") |> factor(levels=c("no","yes"))) |> 
+  select(has_A, has_B, has_C, has_D, has_C, has_E, has_F, sample_id, hr_status_combined) |> 
+  as.data.frame()
+
+
+tree2 <- party(pn,
+            data = tree_df2,
+            fitted = data.frame(
+              "(fitted)" = fitted_node(pn, data = tree_df2),
+              "(response)" = tree_df2$hr_status_combined,
+              check.names = FALSE),
+            terms = terms(hr_status_combined ~ ., data = tree_df2)
+)
+
+
+ggparty(tree2) +
+  geom_edge() +
+  geom_edge_label() +
+  geom_node_splitvar(fontface = "bold") +
+  geom_node_plot(gglist = list(geom_bar(aes(x = hr_status_combined, fill = hr_status_combined)),
+                               geom_text(stat='count', aes(x=hr_status_combined,label=..count..), vjust=0, size=2.6),
+                               theme_bw(),
+                               theme(axis.text.x = element_blank(), 
+                                     axis.ticks.x = element_blank(), 
+                                     panel.grid = element_blank()),
+                               scale_fill_manual(values=c("#0073C2","#EFC000")),
+                               ylab(""),
+                               xlab(""))) +
+  geom_node_label(aes(label = paste0(info, ", N = ", nodesize)),
+                  fontface = "bold",
+                  ids = "terminal",
+                  size = 3,
+                  # 0.01 nudge_y is enough to be above the node plot since a terminal
+                  # nodeplot's top (not center) is at the node's coordinates.
+                  nudge_y = 0.01) 
+```
+
