@@ -20,12 +20,19 @@ knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = F
 ```
 
 
+The HRDsum scores were calculated using the `scar_score()` function of [modified scripts](scripts/hrdsum.R) based on scarHRD package. 
+
+
 ```{r, cache=TRUE, eval=FALSE}
 run_hrdsum <- function(cnv_file) {
+  sample <- basename(cnv_file) |> str_remove(".cnv.txt")
   read.table(cnv_file,header=T, check.names = F, stringsAsFactors = F, sep="\t") |> 
-  select(Chromosome, chromStart, chromEnd, total.copy.number.inTumour, minor.copy.number.inTumour) |> 
-  mutate(cn_B=total.copy.number.inTumour-minor.copy.number.inTumour, Chromosome=paste0("chr",Chromosome)) |> add_column(ploidy=0, sample="FBC013587") |> 
-select(sample, everything()) |> scar_score() |> as.data.frame()
+    select(Chromosome, chromStart, chromEnd, total.copy.number.inTumour, minor.copy.number.inTumour) |> 
+    mutate(cn_B=total.copy.number.inTumour-minor.copy.number.inTumour, Chromosome=paste0("chr",Chromosome)) |> 
+    add_column(ploidy=0, sample=sample) |> 
+    select(sample,everything()) |> 
+    scar_score() |> 
+    as.data.frame()
 }
 
 df_hrdsum <- list.files("data/GRCh38", pattern = "*.cnv.txt", recursive = TRUE, full.names = TRUE) |> set_names(\(x) basename(x) |> str_remove(".cnv.txt")) |> 
@@ -35,24 +42,24 @@ df_hrdsum |> write_tsv("results/hrdsum_355.tsv")
 ```
 
 
-
 ```{r}
 df_hrdsum <- read_tsv("results/chord_hrdprediction_355.tsv") |>
   left_join(read_tsv("results/hrdsum_355.tsv"), by="sample") |> 
-    mutate(sample_id=case_when(startsWith(sample,"MAGIC")~str_split_i(sample,"\\.",i=1),
-                                       startsWith(sample,"GQ")~str_split_i(sample,"\\.",i=1),
-                                       TRUE~sample),
-                    tumour_id=case_when(startsWith(sample,"MAGIC")~str_split_i(sample,"\\.",i=2),
-                                       startsWith(sample,"GQ")~str_split_i(sample,"\\.",i=2),
-                                       TRUE~sample)) |> 
+  mutate(sample_id=case_when(startsWith(sample,"MAGIC")~str_split_i(sample,"\\.",i=1),
+                             startsWith(sample,"GQ")~str_split_i(sample,"\\.",i=1),
+                             TRUE~sample),
+         tumour_id=case_when(startsWith(sample,"MAGIC")~str_split_i(sample,"\\.",i=2),
+                             startsWith(sample,"GQ")~str_split_i(sample,"\\.",i=2),
+                             TRUE~sample)) |> 
   filter(!tumour_id %in% extra_tumours) |> 
   mutate(cohort=case_when(startsWith(sample,"MAGIC")~"MAGIC",
                           startsWith(sample,"TCGA")~"TCGA",
                           startsWith(sample,"FBC")~"Familial Breast",
                           startsWith(sample,"GQ")~"Q-IMPROvE")) |> 
   arrange(desc(`HRD-sum`)) |> 
-  mutate(sample_id=factor(sample_id,levels=sample_id), hr_status=ifelse(hr_status=="HR_deficient","HRD", "non-HRD"), cohort=factor(cohort, levels=cohort_levels))
-
+  mutate(sample_id=factor(sample_id,levels=sample_id), 
+         hr_status=ifelse(hr_status=="HR_deficient","HRD", "non-HRD"), 
+         cohort=factor(cohort, levels=cohort_levels))
 ```
 
 There is no threshold for HRDsum score for distinguishing HRD samples from non-HRD samples.
@@ -75,7 +82,6 @@ df_hrdsum |>
   geom_jitter(position=position_jitter(0.2))+
   theme_Publication() + 
   labs(x="", y="HRDsum score", color="")
-  
 ```
 
 

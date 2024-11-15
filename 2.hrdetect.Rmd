@@ -99,34 +99,11 @@ df_hrd |>
 ```
 
 
-## Fix the FFPE impact in MAGIC cohort
+Since MAGIC cohort was composed of FFPE-derived samples, we did [FFPE correction](FFPE_correction.md) to exame whether this affect our HRD prediction.
 
-We followed the [FFPEsig](https://github.com/QingliGuo/FFPEsig) method from [Qingli Guo et al., 2022](https://www.nature.com/articles/s41467-022-32041-5) to correct the FFPE signatures in samples of MAGIC cohort.
-
-```bash
-python scripts/FFPEsig.py --input data/GRCh38/MAGIC.sorted.matrix.csv --sample $sample --label Unrepaired --output MAGIC_ffpe_unrepaired_fixing
-```
-
-Then extracted SBS signatures and predicted HRD with corrected mutations.
 
 ```{r, eval=FALSE}
-unrepaired_correction <- read.table("../1.denovo_extraction/data/GRCh38/MAGIC.ffpe_unrepaired_corrected.matrix.txt", header = TRUE,check.names = FALSE)
-rownames(unrepaired_correction) <- rownames(COSMIC30_subs_signatures)
-
-Zainal_SBS_fit_from_matrix <- function(sample, matrix, signature_to_fit) {
-  mut_cat <- matrix[sample]
-  subs_fit_res <- Fit(catalogues = mut_cat,
-                      signatures = signature_to_fit,
-                      useBootstrap = TRUE,
-                      nboot = 1000,
-                      nparallel = 4)
-  return(subs_fit_res$exposures |> as.data.frame())
-}
-
-ffpe_corr_sbs_df <- colnames(unrepaired_correction) |> set_names() |> map(\(x) Zainal_SBS_fit_from_matrix(x, unrepaired_correction, cosmicv2_signatures[sigsToUse])) |> list_rbind(names_to = "sample")
-
-
-#ffpe_corr_sbs_df |> write_tsv("results/magic_ffpe_corrected_sbs.txt")
+ffpe_corr_sbs_df <- read_tsv("results/magic_ffpe_corrected_sbs.txt")
 
 ## re-run HRD pipeline for corrected MAGIC data.
 input_matrix <- matrix(data=NA, nrow = nrow(ffpe_corr_sbs_df), ncol = length(col_hrdetect), dimnames = list(ffpe_corr_sbs_df$sample, col_hrdetect))
@@ -153,14 +130,22 @@ res_magic_ffpe <- HRDetect_pipeline(input_matrix,
 Comparing the HRD prediction results before and after FFPE correction, there is no impact to number of HRD samples except some minor value changes.
 
 ```{r hrdetect_fig4, fig.height=4, fig.width=5}
-df_hrd_magic <- read_tsv("results/hrdetect_hrdprediction_355.tsv") |> filter(startsWith(sample,"MAGIC")) |> separate_wider_delim(sample,names = c("sample_id","tumour_id"), delim = ".") |> select(sample_id,tumour_id, Probability)
+df_hrd_magic <- read_tsv("results/hrdetect_hrdprediction_355.tsv") |> 
+  filter(startsWith(sample,"MAGIC")) |> 
+  separate_wider_delim(sample,names = c("sample_id","tumour_id"), delim = ".") |> 
+  select(sample_id,tumour_id, Probability)
 
-df_hrd_magic_corrected <- read_tsv("results/magic_ffpe_corrected_hrdetect.txt") |> select(tumour_id,Probability)
+df_hrd_magic_corrected <- 
+  read_tsv("results/magic_ffpe_corrected_hrdetect.txt") |> 
+  select(tumour_id,Probability)
 
-df_hrd_magic |> left_join(df_hrd_magic_corrected, by="tumour_id") |> rename("Original"=Probability.x,"FFPE-corrected"=Probability.y) |> 
+df_hrd_magic |> left_join(df_hrd_magic_corrected, by="tumour_id") |> 
+  rename("Original"=Probability.x,"FFPE-corrected"=Probability.y) |> 
   filter(!tumour_id %in% extra_tumours) |> 
-  arrange(desc(Original)) |> mutate(sample_id=factor(sample_id, levels=sample_id)) |> 
-  pivot_longer(c(Original, `FFPE-corrected`)) |> mutate(name=factor(name, levels=c("Original", "FFPE-corrected"))) |> 
+  arrange(desc(Original)) |> 
+  mutate(sample_id=factor(sample_id, levels=sample_id)) |> 
+  pivot_longer(c(Original, `FFPE-corrected`)) |> 
+  mutate(name=factor(name, levels=c("Original", "FFPE-corrected"))) |> 
   ggplot(aes(x=sample_id,y=value, color=name)) + geom_point(alpha=.4, size=1.6) +
   geom_hline(yintercept = 0.7, color="grey", lty=2, linewidth=1) +
   labs(x="Tumour samples",y="HRD Probability (HRDetect)", color="") + theme_Publication() +

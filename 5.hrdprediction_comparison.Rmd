@@ -16,7 +16,7 @@ extra_tumours <- c("QIPAH006_20230927_0012", "QIPAH011_20230927_0017", "QIPAH013
 knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path ="cache/")
 ```
 
-
+Both HRDetect and CHORD had accurately predict HRD samples in the Familial breast cancer cohort as Nones et al., 2019. For other cohorts, there are five individuals been classified differently by two models.
 
 ```{r}
 hrdetect_hrd <- read_tsv("results/hrdetect_hrdprediction_355.tsv")
@@ -42,7 +42,6 @@ hrdsum <- read_tsv("results/hrdsum_355.tsv") |> separate_wider_delim(sample,".",
 df_hrd |> filter(hr_status_combined=="Inconsistent") |> left_join(hrdsum) |> select(sample_id, HRDetect,CHORD, `HRD-sum`) |> knitr::kable()
 ```
 
-There are five samples had inconsistent HR status perdition from two methods.
 
 ```{r hrd_comparison_fig1, fig.width=6.8, fig.height=5}
 p1 <- df_hrd |> mutate(hr_status_combined=factor(hr_status_combined,levels=c("HRD","non-HRD","Inconsistent"))) |> 
@@ -54,7 +53,7 @@ p1 <- df_hrd |> mutate(hr_status_combined=factor(hr_status_combined,levels=c("HR
 p1
 ```
 
-Notably, four out of these five samples were excluded by germline classification, and `TCGA-A7-A13D` is classified as brca_negative which is consistent with CHORD result.
+Notably, four out of these five samples were excluded by [germline classification](xx), and `TCGA-A7-A13D` is classified as brca_negative which is consistent with CHORD result.
 
 
 
@@ -84,9 +83,4 @@ p3 <- chord_brca12 |> filter(hr_status_combined=="HRD") |>
   theme_Publication() + labs(x="",y="Number of samples", fill="HRD type") + 
   theme(legend.position = "bottom") 
 p3
-```
-
-```{r figure1, fig.height=9.8, fig.width=9.3}
-
-p1 / (p2 | p3) + plot_layout(heights = c(0.58,0.42), widths = c(1, 0.5, 0.5)) + plot_annotation(tag_levels = 'A')
 ```

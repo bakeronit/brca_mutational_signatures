@@ -77,17 +77,9 @@ df_hrd |>
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
 ```
 
-```{r chord_fig4, fig.height=4.5, fig.width=4.8}
-df_tmp <- df_hrd |> group_by(cohort) |> mutate(total=n()) |> add_count(hr_status) |> filter(hr_status=="HRD") 
+CHORD can distinguish BRCA1 and BRCA2 type in HRD group.
 
-ggplot() + geom_bar(data=df_hrd, aes(x=cohort, fill=hr_status),stat = "count") + 
-  geom_text(data=df_tmp, aes(x=cohort, y=total, label=paste0(n,"/",total)), vjust=-.1, color="black") +
-  scale_fill_manual(values=c("#0073C2","#EFC000"))+ 
-  theme_Publication() + labs(x="",y="Number of samples", fill="HR status") + 
-  theme(legend.position = "bottom")  
-```
-
-```{r chord_fig5, warning=FALSE, fig.width=4.8, fig.height=4.5}
+```{r chord_fig4, warning=FALSE, fig.width=4.8, fig.height=4.5}
 my_blues <- brewer.pal(3,"Blues") |> rev()
 df_hrd |> filter(hr_status=="HRD") |> 
   ggplot(aes(x=cohort,fill=hrd_type)) + geom_bar() + scale_fill_manual(values=my_blues, labels=c("BRCA1","BRCA2","Undetermined")) +
@@ -104,7 +96,7 @@ sv_df_list <- list.files("data/GRCh38/MAGIC", ".sv.tsv", recursive = TRUE,full.n
 
 magic_chord_context <- names(snv_files)|> map_df(\(x) extractSigsChord(vcf.snv=snv_files[x], vcf.indel=indel_files[x], df.sv = sv_df_list[[x]], sample.name = x, ref.genome = BSgenome.Hsapiens.UCSC.hg38) |> as.data.frame())
 
-corrected_mutation <- read_tsv("/mnt/backedup/home/jiaZ/working/bioprojects/breast_cancer_tms_Amanda2023/1.denovo_extraction/data/GRCh38/MAGIC.ffpe_unrepaired_corrected.extractor_sorted.matrix.txt")
+corrected_mutation <- read_tsv("data/MAGIC.ffpe_unrepaired_corrected.extractor_sorted.matrix.txt")
 
 magic_chord_context[,1:96] <- corrected_mutation[match(colnames(magic_chord_context[,1:96]), corrected_mutation$MutationType),] |> 
   column_to_rownames("MutationType") |> t() |> as.data.frame()
@@ -112,12 +104,11 @@ magic_chord_context[,1:96] <- corrected_mutation[match(colnames(magic_chord_cont
 chord_magic_ffpe <- chordPredict(magic_chord_context, do.bootstrap=T, verbose=F) |> select(sample, p_hrd) |> separate_wider_delim(sample,".", names = c("sample_id","tumour_id")) |> 
   filter(!tumour_id %in% extra_tumours) |> select(-tumour_id)
 
-
 chord_magic <- df_chord |> filter(startsWith(sample,"MAGIC")) |> select(sample, p_hrd) |> separate_wider_delim(sample,".", names=c("sample_id","tumour_id")) |> 
   filter(!tumour_id %in% extra_tumours) |> select(-tumour_id)
 ```
 
-```{r chord_fig6, fig.height=4, fig.width=5}
+```{r chord_fig5, fig.height=4, fig.width=5}
 inner_join(chord_magic, chord_magic_ffpe, by="sample_id") |> 
   dplyr::rename("Original"=p_hrd.x,"FFPE-corrected"=p_hrd.y) |> 
   arrange(desc(Original)) |> 
