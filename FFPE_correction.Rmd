@@ -1,0 +1,98 @@
+---
+title: "FFPE signature correction in "
+output: github_document
+---
+
+```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(signature.tools.lib)
+library(here)
+
+source("scripts/signature.tools.lib-utils.R")
+source("scripts/plot_utils.R")
+extra_tumours <- c("QIPAH006_20230927_0012", "QIPAH011_20230927_0017", "QIPAH013_20230927_0029", "QIPAH002_20230927_0023","2020_118T2")
+knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path ="cache/")
+```
+
+
+
+We followed the [FFPEsig](https://github.com/QingliGuo/FFPEsig) method from [Qingli Guo et al., 2022](https://www.nature.com/articles/s41467-022-32041-5) to correct the FFPE signatures in samples of MAGIC cohort.
+
+We used [SigProfilerExtractor](https://github.com/AlexandrovLab/SigProfilerExtractor) to generate the mutational catalogus matrix with 96 channel which is a intermediate file of the signature extraction process, the vcf files of MAGIC cohort were used as input.
+
+```python
+sig.sigProfilerExtractor(input_type="vcf",
+  input_data=data/GRCh38/MAGIC,
+  output=results/GRCh38,
+  reference_genome="GRCh38",
+  cosmic_version="3.2",
+  context_type="96",
+  minimum_signatures=2,
+  maximum_signatures=10,
+  nmf_replicates=100,
+  cpu=30)
+```
+
+```bash
+python scripts/sort_SBS_channel.py results/GRCh38/MAGIC/COSMIC2/SBS96/Samples.txt data/GRCh38/MAGIC.sorted.matrix.txt
+cut -f2- data/GRCh38/MAGIC.sorted.matrix.txt | sed 's/\t/,/g' > data/GRCh38/MAGIC.sorted.matrix.csv
+for sample in `head -n 1 data/GRCh38/MAGIC.sorted.matrix.csv| tr ',' ' '`; do
+      python scripts/FFPEsig.py --input data/GRCh38/MAGIC.sorted.matrix.csv \
+      --sample $sample --label Unrepaired --output MAGIC_ffpe_unrepaired_fixing
+ done
+paste MAGIC_ffpe_unrepaired_fixing/*_corrected_profile.csv > data/GRCh38/MAGIC.ffpe_unrepaired_corrected.matrix.txt
+python scripts/sort_SBS_channel.py data/GRCh38/MAGIC.ffpe_unrepaired_corrected.matrix.txt data/GRCh38/MAGIC.ffpe_unrepaired_corrected.extractor_sorted.matrix.txt --reverse
+```
+
+Then extracted SBS signatures and predicted HRD with corrected mutations.
+
+
+```{r, eval=FALSE}
+cosmicv2_signatures  <- read_table("data/COSMIC/COSMIC_v2_SBS_GRCh38.txt") |> column_to_rownames("Type")
+cosmicv2_signatures <- cosmicv2_signatures[match(rownames(COSMIC30_subs_signatures), rownames(cosmicv2_signatures)),]
+corrected_matrix <- read.table("data/MAGIC.ffpe_unrepaired_corrected.matrix.txt",header = TRUE,check.names = FALSE)
+rownames(corrected_matrix) <- rownames(COSMIC30_subs_signatures)
+
+ffpe_corr_sbs_df <- colnames(corrected_matrix) |> set_names() |> map(\(x) Zainal_SBS_fit_from_matrix(x, corrected_matrix, cosmicv2_signatures[sigsToUse])) |> list_rbind(names_to = "sample")
+ffpe_corr_sbs_df |> write_tsv("results/magic_ffpe_corrected_sbs.txt")
+```
+
+### SBS signature of MAGIC samples before FFPE correction
+
+```{r supplementary-ffpe_before, fig.width=7.8, fig.height=4}
+df_chord <- read_tsv("results/chord_hrdprediction_355.tsv") |> filter(startsWith(sample,"MAGIC")) |> 
+  separate_wider_delim(sample, ".", names = c("sample_id", "tumour_id")) |> select(sample_id,tumour_id, hr_status, hrd_type)
+
+magic_sbs_df <- read_tsv("results/signature_tools_lib_sbs.355.tsv") |> filter(startsWith(sample,"MAGIC")) |> 
+  separate_wider_delim(sample, ".", names = c("sample_id", "tumour_id")) |> 
+  select(where(~ is.numeric(.) && sum(.) >= 10), where(~ !is.numeric(.)))
+
+left_join(df_chord, magic_sbs_df, by=c("sample_id","tumour_id")) |>
+  filter(!tumour_id %in% extra_tumours) |> 
+  select(-tumour_id) |> 
+  pivot_longer(-c(sample_id,hr_status, hrd_type)) |> 
+  mutate(hr_status=ifelse(hr_status=="HR_deficient","HRD", "non-HRD"),name=factor(name,levels=sig_levels)) |> 
+  ggplot(aes(x=sample_id,y=value,fill=name)) + geom_col(position="fill") + facet_grid(~hr_status,scale="free_x",space="free_x") +
+  scale_y_continuous(labels = scales::percent) + scale_fill_manual(values = sig_color_mapping) +
+  theme_Publication() + theme(axis.text.x = element_blank(), axis.ticks.x=element_blank()) +
+  labs(x="",y="",fill="")
+```
+
+### SBS signature of MAGIC samples after FFPE correction
+
+```{r supplementary-ffpe_after, fig.width=7.8, fig.height=4}
+ffpe_corr_sbs_df <- read_tsv("results/magic_ffpe_corrected_sbs.txt") |> select(where(~ is.numeric(.) && sum(.) >= 10), where(~ !is.numeric(.)))
+
+ 
+left_join(df_chord, ffpe_corr_sbs_df, by=c("tumour_id"="sample")) |> 
+  filter(!tumour_id %in% extra_tumours) |> select(-tumour_id) |> 
+  pivot_longer(-c(sample_id,hr_status, hrd_type)) |> 
+  mutate(hr_status=ifelse(hr_status=="HR_deficient","HRD", "non-HRD"),name=factor(name,levels=sig_levels)) |> 
+  ggplot(aes(x=sample_id,y=value,fill=name)) + geom_col(position="fill") + facet_grid(~hr_status,scale="free_x",space="free_x") +
+  scale_y_continuous(labels = scales::percent) + scale_fill_manual(values = sig_color_mapping) +
+  theme_Publication() + theme(axis.text.x = element_blank(), axis.ticks.x=element_blank()) +
+  labs(x="",y="",fill="")
+```
+
+
+We obervered changes in Signature 3 proportion in samples and signature 30 disappeared as expected.
