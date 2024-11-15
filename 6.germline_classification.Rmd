@@ -6,8 +6,8 @@ output: github_document
 ```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
 library(here)
 library(tidyverse)
-library(gt)
 library(ggh4x)
+library(gt)
 library(ggparty)
 knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path = "cache/")
 ```
@@ -39,17 +39,17 @@ criteria <- c(
   "Benign/Likely benign variants in BRCA1 and/or BRCA2"
 )
 
-num_of_variant <- read_tsv("../4.brca_classification/germline_mutation_classification.txt") |> count(Group) |> pull(n)
+num_of_variant <- read_tsv("../4.brca_classification/germline_mutation_classification.txt") |> count(Class_updated) |> pull(n)
 
 tibble("Variant class" = variant_class, "Criteria" = criteria, "N"=num_of_variant) |> 
-  gt() |> tab_footnote(footnote=md("*Genes included: BRCA1, BRCA2, PALB2, BARD1 ,BRIP1, RAD51C, RAD51D, CHEK2, ATM*"))
+  gt() |> tab_footnote(footnote=md("*Genes included: BRCA1, BRCA2, PALB2, BARD1 ,BRIP1, RAD51C, RAD51D, CHEK2, ATM*")) |> as_raw_html()
 
 ```
 
 Next, we went through each sample, and labelled them as BRCA1/2_positive or BRCA1/2_negative using [labbel_individual.py](scripts/labbel_individual.py). Furthermore, to avoid the noise from pathogenic variants of other genes, we excluded samples if P/LP variants of other genes (class A) or VUS of other genes(class B) were present in one. In addition, we separated individuals with VUS_BRCA (class E) variants but not others as the Additional group for further investigation. 
 
 ```bash
-cut -f1,2,3,4,8,95 BRCA.germline_snvs.annotation_cf.txt > germline_mutation_classification.txt. # get chr, position, ref, alt, gene_name, Group(variat_class) columns from xlsx by CF.
+cut -f1,2,3,4,8,100 BRCA.germline_snvs.annotation_cf.final.txt > germline_mutation_classification.txt. # get chr, position, ref, alt, gene_name, (variant_class) columns in xlsx from CF.
 for file in *.filtered.tsv; do 
   python labbel_individual.py $file >> sample_classification.txt
 done
