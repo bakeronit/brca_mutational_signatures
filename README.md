@@ -8,6 +8,7 @@ Scripts and R code used in the paper:
 ### Cohort and data resources
 
 - [Data resources](1.data_summary.md)
+- [FFPE sample signature correction](FFPE_correction.md)
 
 ### HRD analysis
 
@@ -18,7 +19,7 @@ Scripts and R code used in the paper:
 
 ### Germline variants and BRCA1/2 classfication
 
-- [Germline classification](6.germline_classification.Rmd)
+- [Germline classification](6.germline_classification.md)
 
 ### `sessionInfo`
 
