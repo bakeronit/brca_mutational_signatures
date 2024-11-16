@@ -12,7 +12,7 @@ library(here)
 
 source("scripts/plot_utils.R")
 source("scripts/hrdsum.R")
-load("scripts/hrdsum_chrominfo.rda")
+load("data/hrdsum_chrominfo.rda")
 
 cohort_levels <- c("Familial Breast","TCGA","MAGIC","Q-IMPROvE")
 extra_tumours <- c("QIPAH006_20230927_0012", "QIPAH011_20230927_0017", "QIPAH013_20230927_0029", "QIPAH002_20230927_0023","2020_118T2")

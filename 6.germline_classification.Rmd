@@ -199,7 +199,7 @@ read_tsv("../4.brca_classification/sv/real_sv.txt", col_names = c("chrom1","pos1
   gt() |> as_raw_html()
 ```
 
-We used (extract_ind_with_pathSV.py)[scripts/extract_ind_with_pathSV.py] to get individuals carries these SVs in each cohort.
+We used [extract_ind_with_pathSV.py](scripts/extract_ind_with_pathSV.py) to get individuals carries these SVs in each cohort.
 
 ```bash
 python extract_ind_with_pathSV.py $cohort | datamash -s -g1 collapse 2 > ${cohort}.sv.tsv
