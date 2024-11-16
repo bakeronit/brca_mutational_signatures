@@ -105,7 +105,7 @@ df_all |> pivot_longer(c(ascatPurityScore,TMB_nonSyn)) |>
 
 df_all |> 
   group_by(cohort) |> 
-  summarise(mean_purity = mean(ascatPurityScore), min=min(ascatPurityScore), max=max(ascatPurityScore)) |> gt()
+  summarise(mean_purity = mean(ascatPurityScore), min=min(ascatPurityScore), max=max(ascatPurityScore)) |> gt() |> as_raw_html()
 ```
  
  

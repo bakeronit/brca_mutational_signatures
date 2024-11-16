@@ -209,7 +209,7 @@ After integrating SV results in individuals classification, 6 samples were affec
 
 ```{r}
 sv_df <- read_tsv("../4.brca_classification/sv/sample_pathSV.real.tsv", col_names = c("sample_id","pathSV"))
-sv_df |> gt()
+sv_df |> gt() |> as_raw_html()
 df2 <- df |> left_join(sv_df) |> 
   mutate(SV_A = map_dbl(str_split(pathSV, ","), ~ sum(str_detect(., "^A"))),
          SV_D = map_dbl(str_split(pathSV, ","), ~ sum(str_detect(., "^D"))),
