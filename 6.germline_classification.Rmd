@@ -55,7 +55,7 @@ for file in *.filtered.tsv; do
 done
 ```
 
-We merged with this classification with thier tumour HRD profiles and generate a big table.
+We merged with this classification with thier tumour HRD profiles and generate a big table ()[]: 
 
 ```{r}
 extra_tumours <- c("2020_118T2","QIPAH006_20230927_0012","QIPAH011_20230927_0017","QIPAH013_20230927_0029","QIPAH002_20230927_0023")
@@ -80,17 +80,17 @@ somatic_df <- inner_join(chord_df, hrdetect_df) |>
          tumour_id=ifelse(cohort %in% c("MAGIC","Q-IMPROvE"), str_split_i(sample,"\\.",i=2), sample),
          sample_id=ifelse(cohort %in% c("MAGIC","Q-IMPROvE"), str_split_i(sample,"\\.",i=1), sample)) |> 
   filter(!tumour_id  %in% extra_tumours) |> 
-  select(-c(sample, tumour_id)) |> 
+  select(-c(sample)) |> 
   select( cohort,sample_id,everything()) 
 ```
 
 
 ```{r}
 qc_df <- read_tsv("results/purity_tmb.tsv")
-df <- inner_join(qc_df, somatic_df, by="sample_id")  |> inner_join(germline_df) |> select(cohort, everything())
+df <- inner_join(qc_df, somatic_df, by="sample_id")  |> inner_join(germline_df) |> select(cohort, sample_id, tumour_id, everything())
 #df |> write_tsv("results/brca_germline_clf_tumor_hrd.tsv")
 
-head(df, n=10) |> gt() |> 
+head(df, n=5) |> gt() |> 
    tab_spanner(
     label = md("**CHORD results**"),
     columns = c(p_hrd:hrd_type)
@@ -106,13 +106,13 @@ head(df, n=10) |> gt() |>
    tab_spanner(
     label = md("**Germline classification**"),
     columns = c(A:class_B_mutations)
-  )
+  ) |>
+  sub_missing() |> 
+  as_raw_html()
 ```
 
 
 ### A partition tree of the individual germline classification
-
-
 
 ```{r Figure2, fig.height=8, fig.width=8.6, warning=FALSE}
 df <- read_tsv("results/brca_germline_clf_tumor_hrd.tsv") 
@@ -196,7 +196,13 @@ Eventually, this results in  7 SVs:
 
 ```{r}
 read_tsv("../4.brca_classification/sv/real_sv.txt", col_names = c("chrom1","pos1","chrom2","pos2", "ID", "SV_type", "SV_len", "gene1", "gene2", "frequency","cohort","class")) |> 
-  gt()
+  gt() |> as_raw_html()
+```
+
+We used (extract_ind_with_pathSV.py)[scripts/extract_ind_with_pathSV.py] to get individuals carries these SVs in each cohort.
+
+```bash
+python extract_ind_with_pathSV.py $cohort | datamash -s -g1 collapse 2 > ${cohort}.sv.tsv
 ```
 
 After integrating SV results in individuals classification, 6 samples were affected by these real SVs, we then updated the germline classfication for these individuals 
@@ -212,15 +218,24 @@ df2 <- df |> left_join(sv_df) |>
   mutate(A=ifelse(SV_A>0, A+SV_A, A),
          D=ifelse(SV_D>0, D+SV_D, D),
          E=ifelse(SV_E>0, E+SV_E, E)) |> 
-  select(-c(pathSV:SV_E))
+  select(-c(SV_A:SV_E))
 
 affected_samples <- sv_df |> pull(sample_id)
-df2 |> filter(sample_id %in% affected_samples) |> select(cohort,sample_id, hr_status_combined, A, B, C, D, E, F, germline_classification) |> 
+tmp_df <- df2 |> filter(sample_id %in% affected_samples) |> select(cohort,sample_id, hr_status_combined, A, B, C, D, E, F, germline_classification, pathSV) |> 
   mutate(updated_germline_classification=case_when(
     A>0 ~ "exclude",
-    D>0 ~ "positive_brca1/2",
+    D>0 & grepl("BRCA1", pathSV) ~ "positive_brca1",
+    D>0 & grepl("BRCA2", pathSV) ~ "positive_brca2",
     TRUE~ germline_classification
-  )) |> gt()
+  )) 
+
+tmp_df |> select(-pathSV) |>  gt() |> as_raw_html()
+
+
+result_df <- df2 |> left_join(tmp_df |> select(sample_id, updated_germline_classification)) |> 
+  mutate(updated_germline_classification=ifelse(is.na(updated_germline_classification), germline_classification, updated_germline_classification)) 
+
+result_df |> write_tsv("results/brca_germline_clf_tumor_hrd.add_sv.tsv")
 ```
 
 ### Partitioin tree after integrating SVs.
@@ -268,5 +283,18 @@ ggparty(tree2) +
                   # 0.01 nudge_y is enough to be above the node plot since a terminal
                   # nodeplot's top (not center) is at the node's coordinates.
                   nudge_y = 0.01) 
+```
+
+Lastly, we add somatic mutation information as well using [add_somatic_mutations.py](scripts/add_somatic_mutations.py). The results include any somatic mutations in the 10 genes and the copy number of each gene.
+
+```bash
+python add_somatic_mutations.py brca_germline_clf_tumor_hrd.add_sv.tsv > brca_germline_clf_tumor_hrd.add_sv.add_somatic.tsv
+```
+
+```{r}
+read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.add_somatic.tsv") |> head(5) |> 
+  gt() |> 
+  sub_missing() |> 
+  as_raw_html()
 ```
 
