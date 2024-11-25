@@ -5,10 +5,16 @@ output: github_document
 
 ```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
 library(here)
+library(yaml)
 library(tidyverse)
 library(ggh4x)
 library(gt)
 library(ggparty)
+library(patchwork)
+config <- read_yaml("config.yaml")
+extra_tumours <- config$extra_tumours
+data_dir <- config$germline_classification_folder
+source("scripts/plot_utils.R")
 knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path = "cache/")
 ```
 
@@ -58,10 +64,9 @@ done
 We merged with this classification with thier tumour HRD profiles and generate a big table ()[]: 
 
 ```{r}
-extra_tumours <- c("2020_118T2","QIPAH006_20230927_0012","QIPAH011_20230927_0017","QIPAH013_20230927_0029","QIPAH002_20230927_0023")
 `%notin%` <- Negate(`%in%`)
 
-germline_df <- read_tsv("../4.brca_classification/sample_classification.txt",
+germline_df <- read_tsv(paste0(data_dir, "sample_classification.txt"),
          col_names=c("sample_id","A","B","C","D","E","F","germline_classification","class_D_mutation","class_E_mutations","class_A_mutations","class_B_mutations")) 
 
 
@@ -114,7 +119,7 @@ head(df, n=5) |> gt() |>
 
 ### A partition tree of the individual germline classification
 
-```{r Figure2, fig.height=8, fig.width=8.6, warning=FALSE}
+```{r, warning=FALSE}
 df <- read_tsv("results/brca_germline_clf_tumor_hrd.tsv") 
 df <- df |> mutate(hr_status_combined=case_when(Probability>=0.7 & hr_status=="HR_deficient"~"HRD", 
                                       Probability<0.7 & hr_status=="HR_proficient" ~ "non-HRD", 
@@ -165,8 +170,17 @@ tree <- party(pn,
             terms = terms(hr_status_combined ~ ., data = tree_df)
 )
 
+```
 
-ggparty(tree) +
+```{r, Figure2, fig.height=8, fig.width=8.6, warning=FALSE, fig.cap="This figure illustrates the method we classfied each individual as different germline group"}
+p_tmp <- tree_df |> 
+  ggplot(aes(x=hr_status_combined, fill=hr_status_combined)) + 
+  geom_bar() + 
+  scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  labs(fill="") + theme(legend.position = "bottom")
+p_legend <- ggpubr::get_legend(p_tmp)
+
+p1 <- ggparty(tree) +
   geom_edge() +
   geom_edge_label() +
   geom_node_splitvar(fontface = "bold") +
@@ -177,7 +191,7 @@ ggparty(tree) +
                                      axis.ticks.x = element_blank(), 
                                      panel.grid = element_blank()),
                                scale_fill_manual(values=c("#0073C2","#EFC000")),
-                               ylab(""),
+                               ylab("Count"),
                                xlab(""))) +
   geom_node_label(aes(label = paste0(info, ", N = ", nodesize)),
                   fontface = "bold",
@@ -187,7 +201,27 @@ ggparty(tree) +
                   # nodeplot's top (not center) is at the node's coordinates.
                   nudge_y = 0.01) 
 
+p1/p_legend + plot_spacer() + plot_layout(heights = c(11,-1.5,1))
 ```
+
+Furthermore, depending on whether the mutation is present in BRCA1 or BRCA2, we categorized additional mutations as either additional BRCA1 or additional BRCA2, and BRCA1/2-positive cases as either positive BRCA1 or positive BRCA2.
+
+**The number of samples in each detailed category**
+
+```{r, snv_germline_classification_combined,  fig.width=9, fig.height=4.8}
+group_labbeller <- c("additional_brca1"="Additional BRCA1","additional_brca2"="Additional BRCA2", "exclude"="Exclude","negative_brca1/2"="Negative BRCA1/2", "positive_brca1"="Positive BRCA1", "positive_brca2"="Positive BRCA2")
+
+df |> filter(hr_status_combined!="Inconsistent") |> 
+  ggplot(aes(x=hr_status_combined, fill=hr_status_combined)) +
+  geom_bar() + 
+  geom_text(stat='count', aes(x=hr_status_combined,label=..count..), vjust=-.2, size=4) +
+  facet_grid(~germline_classification, labeller = labeller(germline_classification=group_labbeller)) +
+  scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  labs(x="",y="Count", fill="HR status") + ylim(0,150) +
+  theme_Publication() +
+  theme(strip.text = element_text(size=10))
+```
+
 
 
 We also examed structrual variations (SVs) in samples using `DELLY`. The SVs in the 10 genes we listed before were extracted for curation, and those potential pathogenic or hot VUS in other genes excpete BRCA1/2 (class A), pathogenic variants in BRCA1/2 (class D) and VUS in BRCA1/2 (class E) were visually checked in IGV. 
@@ -263,7 +297,7 @@ tree2 <- party(pn,
 )
 
 
-ggparty(tree2) +
+p2 <- ggparty(tree2) +
   geom_edge() +
   geom_edge_label() +
   geom_node_splitvar(fontface = "bold") +
@@ -274,7 +308,7 @@ ggparty(tree2) +
                                      axis.ticks.x = element_blank(), 
                                      panel.grid = element_blank()),
                                scale_fill_manual(values=c("#0073C2","#EFC000")),
-                               ylab(""),
+                               ylab("Count"),
                                xlab(""))) +
   geom_node_label(aes(label = paste0(info, ", N = ", nodesize)),
                   fontface = "bold",
@@ -282,7 +316,9 @@ ggparty(tree2) +
                   size = 3,
                   # 0.01 nudge_y is enough to be above the node plot since a terminal
                   # nodeplot's top (not center) is at the node's coordinates.
-                  nudge_y = 0.01) 
+                  nudge_y = 0.01)
+
+p2/p_legend + plot_spacer() + plot_layout(heights = c(11,-1.5,1))
 ```
 
 Lastly, we add somatic mutation information as well using [add_somatic_mutations.py](scripts/add_somatic_mutations.py). The results include any somatic mutations in the 10 genes and the copy number of each gene.
@@ -298,3 +334,44 @@ read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.add_somatic.tsv") |> head(5
   as_raw_html()
 ```
 
+```{r, germline_classification_combined,  fig.width=9, fig.height=4.8}
+result_df |> filter(hr_status_combined!="Inconsistent") |> 
+  ggplot(aes(x=hr_status_combined, fill=hr_status_combined)) +
+  geom_bar() + 
+  geom_text(stat='count', aes(x=hr_status_combined,label=..count..), vjust=-.2, size=4) +
+  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  labs(x="",y="Count", fill="HR status") + ylim(0,150) +
+  theme_Publication() +
+  theme(strip.text = element_text(size=10))
+```
+
+
+
+**The number of samples in each group based on CHORD or HRDetect results**
+
+```{r, germline_classification_chord,  fig.width=9, fig.height=4.8}
+result_df |>
+  mutate(hr_status=ifelse(hr_status=="HR_deficient","HRD","non-HRD")) |> 
+  ggplot(aes(x=hr_status, fill=hr_status)) +
+  geom_bar() + 
+  geom_text(stat='count', aes(x=hr_status,label=..count..), vjust=-.2, size=4) +
+  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  labs(x="",y="Count", fill="HR status") + ylim(0,150) +
+  theme_Publication() +
+  theme(strip.text = element_text(size=10))
+```
+
+```{r, germline_classification_hrdetect,  fig.width=9, fig.height=4.8}
+result_df |>
+  mutate(hr_status=ifelse(Probability>=0.7,"HRD","non-HRD")) |> 
+  ggplot(aes(x=hr_status, fill=hr_status)) +
+  geom_bar() + 
+  geom_text(stat='count', aes(x=hr_status,label=..count..), vjust=-.2, size=4) +
+  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  labs(x="",y="Count", fill="HR status") + ylim(0,150) +
+  theme_Publication() +
+  theme(strip.text = element_text(size=10))
+```

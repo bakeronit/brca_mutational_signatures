@@ -1,3 +1,5 @@
+# functions from scarHRD (https://github.com/sztup/scarHRD/tree/master/R)
+
 preprocess.hrd<-function(seg){
   seg <- seg[!seg[,2] %in% c(paste('chr',c('X','Y','x','y',23,24),sep=''),c('X','Y','x','y',23,24)),]
   seg[,1] <- as.character(seg[,1])

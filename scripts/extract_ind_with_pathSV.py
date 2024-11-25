@@ -3,6 +3,7 @@ import sys
 import pandas as pd
 from collections import defaultdict
 
+# adjusts for different grafli report format and naming.
 cohort_input = {
     "familial": {
         "vcf_file": "vcf_files/all_Simpson_FamilialBreast_GRCh38.germline.August2024_final.vcf",

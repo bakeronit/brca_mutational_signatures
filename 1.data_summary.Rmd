@@ -5,14 +5,17 @@ output: github_document
 
 ```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
 library(here)
+library(yaml)
 library(tidyverse)
 library(data.table)
 library(vcfR)
 library(gt)
 library(RColorBrewer)
 source("scripts/plot_utils.R")
+config <- read_yaml("config.yaml")
 cohort_labbeller <- c("familial"="Familial Breast","tcga"="TCGA-BRCA", "magic"="MAGIC","qimprove"="Q-IMPROvE")
-extra_tumours <- c("QIPAH006_20230927_0012", "QIPAH011_20230927_0017", "QIPAH013_20230927_0029", "QIPAH002_20230927_0023","2020_118T2")
+extra_tumours <- config$extra_tumours
+data_dir <- config$GRCh38_data_folder
 knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path ="cache/")
 ```
 
@@ -33,18 +36,18 @@ All samples were processed with a uniform pipeline and wWe applied the dual call
 
 ```{r, message=FALSE}
 # load grafli report
-df_none2019 <- read_csv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/Simpson_-_FamilialBreast_SomaticReport_GRCh38_77.csv") |> filter(!is.na(ascatAnalysis)) |> 
+df_none2019 <- read_csv(paste0(data_dir,"Simpson_-_FamilialBreast_SomaticReport_GRCh38_77.csv")) |> filter(!is.na(ascatAnalysis)) |> 
   rename("sample_id"=donorPublicationID)
 
-uuid_tsv <- read_tsv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/uuid_case.txt",col_names = c("uuid","sample_id"))
-df_tcga <- read_csv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/TCGA_-_breast_cancer_SomaticReport_GRCh38.csv") |> filter(!is.na(ascatAnalysis)) |> 
+uuid_tsv <- read_tsv(paste0(data_dir, "uuid_case.txt"),col_names = c("uuid","sample_id"))
+df_tcga <- read_csv(paste0(data_dir, "TCGA_-_breast_cancer_SomaticReport_GRCh38.csv")) |> filter(!is.na(ascatAnalysis)) |> 
   left_join(uuid_tsv, by=c("donorSubmittedWithID"="uuid")) 
 
-df_magic <- read_csv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/Waddell_-_Magic_WGS_StudySomaticReport.csv.139") |> filter(!is.na(ascatAnalysis)) |> rename("sample_id"=donorSubmittedWithID, "tumour_id"=testSampleLabel) |> filter(!tumour_id %in% extra_tumours)
+df_magic <- read_csv(paste0(data_dir, "Waddell_-_Magic_WGS_StudySomaticReport.csv.139")) |> filter(!is.na(ascatAnalysis)) |> rename("sample_id"=donorSubmittedWithID, "tumour_id"=testSampleLabel) |> filter(!tumour_id %in% extra_tumours)
 
 
 ##  A single tumour had two germline controls as they were testing different kits, remove "collectedsample:4a6e39fd-4e92-496d-a1ce-98b1a9340d8c"
-df_qimprove <- read_tsv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.data_resource/GRCh38/GenomiQa_-_qimprove_Somatic_Report_GRCh38_for_jia_no_recurrance.tsv") |> 
+df_qimprove <- read_tsv(paste0(data_dir, "GenomiQa_-_qimprove_Somatic_Report_GRCh38_for_jia_no_recurrance.tsv")) |> 
   filter(! controlSampleIRI=="collectedsample:4a6e39fd-4e92-496d-a1ce-98b1a9340d8c") |> add_column(studyLabel="qimprove") |> rename("sample_id"=patientLabel, "tumour_id"=testSampleLabel) |> 
   filter(!tumour_id %in% extra_tumours)
 ```
@@ -52,10 +55,10 @@ df_qimprove <- read_tsv("~/working/bioprojects/breast_cancer_tms_Amanda2023/0.da
 After removing samples with less then 20x depth in tumour sample, we only keep the primary tumour from each patient.
 
 ```{r supplementary_fig1, fig.width=9, fig.height=4}
-depth_df <- rbind(read_tsv("../0.data_resource/GRCh38/sequencing_depth/nones.depth.txt", col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="familial"),
-                  read_tsv("../0.data_resource/GRCh38/sequencing_depth/tcga.depth.txt", col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="tcga"),
-                  read_tsv("../0.data_resource/GRCh38/sequencing_depth/magic.depth.txt", col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="magic"),
-                  read_tsv("../0.data_resource/GRCh38/sequencing_depth/qimprove.depth.txt",col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="qimprove")
+depth_df <- rbind(read_tsv(paste0(data_dir, "sequencing_depth/nones.depth.txt"), col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="familial"),
+                  read_tsv(paste0(data_dir, "sequencing_depth/tcga.depth.txt"), col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="tcga"),
+                  read_tsv(paste0(data_dir, "sequencing_depth/magic.depth.txt"), col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="magic"),
+                  read_tsv(paste0(data_dir, "sequencing_depth/qimprove.depth.txt"),col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="qimprove")
                   ) |> 
   separate_wider_delim(sample, delim = ".", names = c("sample_id","tumour_id"),too_few = "align_start") |> 
   filter(t_depth>=20, !tumour_id %in% extra_tumours) |> select(-tumour_id)

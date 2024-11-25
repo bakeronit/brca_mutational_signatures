@@ -7,10 +7,11 @@ output: github_document
 library(tidyverse)
 library(signature.tools.lib)
 library(here)
-
+library(yaml)
 source("scripts/signature.tools.lib-utils.R")
 source("scripts/plot_utils.R")
-extra_tumours <- c("QIPAH006_20230927_0012", "QIPAH011_20230927_0017", "QIPAH013_20230927_0029", "QIPAH002_20230927_0023","2020_118T2")
+config <- read_yaml("config.yaml")
+extra_tumours <- config$extra_tumours
 knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path ="cache/")
 ```
 

@@ -5,15 +5,14 @@ output: github_document
 
 ```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
 library(tidyverse)
+library(yaml)
 library(CHORD)
 library(BSgenome.Hsapiens.UCSC.hg38)
 library(RColorBrewer)
 library(here)
-
 source("scripts/plot_utils.R")
-
-cohort_levels <- c("Familial Breast","TCGA","MAGIC","Q-IMPROvE")
-extra_tumours <- c("QIPAH006_20230927_0012", "QIPAH011_20230927_0017", "QIPAH013_20230927_0029", "QIPAH002_20230927_0023","2020_118T2")
+config <- read_yaml("config.yaml")
+extra_tumours <- config$extra_tumours
 knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path ="cache/")
 ```
 

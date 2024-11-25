@@ -18,9 +18,9 @@ my_plot_contribution <- function (contribution, signatures = NA, index = NA, coo
   #all_sig_level <- c( paste( colnames(cosmic2), "like", sep = "-"), c("SBSA","SBS3-like","SBSB","SBS18-like"))
   tb <- contribution %>% as.data.frame() %>% tibble::rownames_to_column("Signature") %>% 
     tidyr::pivot_longer(-Signature, names_to = "Sample", 
-                        values_to = "Contribution") %>% dplyr::mutate(Sample = factor(Sample, 
-                                                                                      levels = unique(Sample)), Signature = factor(Signature, 
-                                                                                                                                   levels = unique(Signature))) |>  full_join(meta_data |> select(Donor, BRCA_status), by=c("Sample"="Donor"))
+                        values_to = "Contribution") %>% 
+    dplyr::mutate(Sample = factor(Sample, levels = unique(Sample)), Signature = factor(Signature, levels = unique(Signature))) |> 
+    full_join(meta_data |> select(Donor, BRCA_status), by=c("Sample"="Donor"))
   if (mode == "absolute") {
     bar_geom <- geom_bar(stat = "identity")
     y_lab <- "Absolute contribution \n (no. mutations)"
@@ -53,6 +53,11 @@ my_plot_contribution <- function (contribution, signatures = NA, index = NA, coo
   return(plot)
 }
 
+
+cohort_levels <- c("Familial Breast","TCGA","MAGIC","Q-IMPROvE")
+
+
+# credit: [@koundy/ggplot_theme_Publication](https://github.com/koundy/ggplot_theme_Publication/tree/master)
 theme_Publication <- function(base_size=14, base_family="sans") {
   library(grid)
   library(ggthemes)
