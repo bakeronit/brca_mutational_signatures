@@ -73,7 +73,7 @@ germline_df <- read_tsv(paste0(data_dir, "sample_classification.txt"),
 chord_df    <- read_tsv("results/chord_hrdprediction_355.tsv") |> select(sample,p_hrd,p_BRCA1,p_BRCA2,hr_status,hrd_type)
 hrdetect_df <- read_tsv("results/hrdetect_hrdprediction_355.tsv") |> select(sample, Probability)
 sigs_df     <- read_tsv("results/signature_tools_lib_sbs.355.tsv") |> column_to_rownames("sample") |> (\(x) x/rowSums(x))() |> rownames_to_column("sample") |> select(sample,Signature_3, Signature_8)
-hrdsum_df   <- read_tsv("results/hrdsum_355.tsv") |> rename("HRDsum" = `HRD-sum`, "LOH"=HRD, "TAI"=`Telomeric AI`)
+hrdsum_df   <- read_tsv("results/hrdsum_355.tsv") |> dplyr::rename("HRDsum" = `HRD-sum`, "LOH"=HRD, "TAI"=`Telomeric AI`)
 
 somatic_df <- inner_join(chord_df, hrdetect_df) |> 
   inner_join( sigs_df) |> 
@@ -348,9 +348,9 @@ result_df |> filter(hr_status_combined!="Inconsistent") |>
 
 
 
-**The number of samples in each group based on CHORD or HRDetect results**
+**The number of samples in each group based on CHORD, HRDetect or HRDsum results**
 
-```{r, germline_classification_chord,  fig.width=9, fig.height=4.8}
+```{r, germline_classification_chord,  fig.width=9, fig.height=3.2}
 result_df |>
   mutate(hr_status=ifelse(hr_status=="HR_deficient","HRD","non-HRD")) |> 
   ggplot(aes(x=hr_status, fill=hr_status)) +
@@ -360,10 +360,10 @@ result_df |>
   scale_fill_manual(values=c("#0073C2","#EFC000")) +
   labs(x="",y="Count", fill="HR status") + ylim(0,150) +
   theme_Publication() +
-  theme(strip.text = element_text(size=10))
+  theme(strip.text = element_text(size=10), legend.position = "none")
 ```
 
-```{r, germline_classification_hrdetect,  fig.width=9, fig.height=4.8}
+```{r, germline_classification_hrdetect,  fig.width=9, fig.height=3.2}
 result_df |>
   mutate(hr_status=ifelse(Probability>=0.7,"HRD","non-HRD")) |> 
   ggplot(aes(x=hr_status, fill=hr_status)) +
@@ -373,5 +373,37 @@ result_df |>
   scale_fill_manual(values=c("#0073C2","#EFC000")) +
   labs(x="",y="Count", fill="HR status") + ylim(0,150) +
   theme_Publication() +
-  theme(strip.text = element_text(size=10))
+  theme(strip.text = element_text(size=10), legend.position = "none")
+```
+
+```{r, germline_classification_hrdsum,  fig.width=9, fig.height=3.2}
+result_df |>
+  mutate(hr_status=ifelse(HRDsum>42,"HRD","non-HRD")) |> 
+  ggplot(aes(x=hr_status, fill=hr_status)) +
+  geom_bar() + 
+  geom_text(stat='count', aes(x=hr_status,label=..count..), vjust=-.2, size=4) +
+  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  labs(x="",y="Count", fill="HR status") + ylim(0,150) +
+  theme_Publication() +
+  theme(strip.text = element_text(size=10), legend.position = "none")
+```
+
+## plot them together
+
+```{r, germline_classification_all,  fig.width=9, fig.height=7.2}
+result_df |>
+  mutate(HRDetect=ifelse(Probability>=0.7,"HRD","non-HRD"), 
+         HRDsum=ifelse(HRDsum>42,"HRD","non-HRD"), 
+         CHORD=ifelse(hr_status=="HR_deficient","HRD","non-HRD") ) |> 
+  select(cohort, sample_id, updated_germline_classification, HRDetect, CHORD, HRDsum) |> 
+  pivot_longer(c(HRDetect, CHORD, HRDsum)) |> 
+  ggplot(aes(x=value, fill=value)) +
+  geom_bar() + 
+  geom_text(stat='count', aes(x=value,label=..count..), vjust=-.2, size=4) +
+  facet_grid(name~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  labs(x="",y="Count", fill="HR status") + ylim(0,150) +
+  theme_Publication() +
+  theme(strip.text = element_text(size=10), legend.position = "none")
 ```

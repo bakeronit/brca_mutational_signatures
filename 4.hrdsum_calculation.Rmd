@@ -67,22 +67,27 @@ There is no threshold for HRDsum score for distinguishing HRD samples from non-H
 df_hrdsum |> 
   ggplot(aes(x=sample_id, y=`HRD-sum`)) +
   geom_point(alpha=.6, color="#3B4992") + 
+  geom_hline(yintercept = 42, color="grey", lty=2, linewidth=1) + 
   theme_Publication() + labs(x="Tumour samples",y="HRDsum score") + 
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank())
 ```
 
+**Figure 1: The HRDsum scores for tumour samples**
+
 We did see higher HRDsum scores for HRD samples (CHORD) than non-HRD samples, but there are many overlapping points especially other cohorts than those Familial breast cancers.
 
-```{r hrdsum_fig2, fig.width=7, fig.height=4.5}
+```{r hrdsum_fig2, fig.width=7, fig.height=4.5, warning=FALSE}
 df_hrdsum |> 
   ggplot(aes(x=hr_status, y=`HRD-sum`, color=hr_status)) + 
   scale_color_manual(values=c("#0073C2","#EFC000")) +
   geom_boxplot() + facet_grid(~cohort) + 
-  geom_jitter(position=position_jitter(0.2))+
+  geom_jitter(position=position_jitter(0.2)) +
+  geom_hline(yintercept = 42, linetype=2 ,size=1, color="darkgrey") +
   theme_Publication() + 
   labs(x="", y="HRDsum score", color="")
 ```
 
+**Figure 2: The HRDsum scores for tumour samples in four cohorts with HRD and non-HRD predicted by CHORD. The grey dash line represent the cut-off value**
 
 ```{r hrdsum_fig3, fig.height=4, fig.width=4}
 df_hrdsum |> 
@@ -90,6 +95,24 @@ df_hrdsum |>
   scale_color_manual(values=c("#0073C2","#EFC000")) +
   geom_boxplot() +
   geom_jitter() +
+  geom_hline(yintercept = 42, linetype=2 ,size=1, color="darkgrey") +
   theme_Publication() + 
   labs(x="", y="HRDsum score", color="")
 ```
+
+**Figure 3: The HRDsum scores for tumour samples  with HRD and non-HRD predicted by CHORD. The grey dash line represent the cut-off value**
+
+Although there is no threshold for HRDsum scores. HRDsum with a cutoff point of 42 is an FDA‐ and European Medicines Agency (EMA)‐approved biomarker to select ovarian cancer patients for PARP inhibition. 
+
+Here we can see using a cut-off of 42 will predict a lot of non-HRD (identified by CHORD) as HRD.
+
+```{r hrdsum_fig4,fig.width=7, fig.height=4.5, warning=FALSE}
+df_hrdsum |> mutate(hr_status=ifelse(`HRD-sum`>42,"HRD","non-HRD")) |> 
+  ggplot(aes(x=hr_status,fill=hr_status)) + geom_bar() + 
+  geom_text(stat='count', aes(label=..count..), vjust=-.1) +
+  facet_grid(~cohort) + ylim(0,130) +
+  theme_Publication() + labs(x="", y= "Number of samples", fill="HR status") + scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+**Figure 4: The number of individuals identified as HRD or non-HRD in four cohorts by HRD-sum score with a cut-off point of 42**

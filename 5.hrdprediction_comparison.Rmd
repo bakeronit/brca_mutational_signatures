@@ -38,6 +38,7 @@ df_hrd <- hrdetect_hrd |>  inner_join(chord_hrd, by = "sample") |>
 hrdsum <- read_tsv("results/hrdsum_355.tsv") |> separate_wider_delim(sample,".", names = c("sample_id","tumour_id"), too_few = "align_start") |> 
   filter(!tumour_id %in% extra_tumours) |> select(-tumour_id)
 
+
 df_hrd |> filter(hr_status_combined=="Inconsistent") |> left_join(hrdsum) |> select(sample_id, HRDetect,CHORD, `HRD-sum`) |> knitr::kable()
 ```
 
@@ -53,8 +54,6 @@ p1
 ```
 
 Notably, four out of these five samples were excluded by [germline classification](xx), and `TCGA-A7-A13D` is classified as brca_negative which is consistent with CHORD result.
-
-
 
 
 ```{r hrd_comparison_fig2, fig.height=4.5, fig.width=4.8}
