@@ -107,7 +107,7 @@ Although there is no threshold for HRDsum scores. HRDsum with a cutoff point of 
 Here we can see using a cut-off of 42 will predict a lot of non-HRD (identified by CHORD) as HRD.
 
 ```{r hrdsum_fig4,fig.width=7, fig.height=4.5, warning=FALSE}
-df_hrdsum |> mutate(hr_status=ifelse(`HRD-sum`>42,"HRD","non-HRD")) |> 
+df_hrdsum |> mutate(hr_status=ifelse(`HRD-sum`>=42,"HRD","non-HRD")) |> 
   ggplot(aes(x=hr_status,fill=hr_status)) + geom_bar() + 
   geom_text(stat='count', aes(label=..count..), vjust=-.1) +
   facet_grid(~cohort) + ylim(0,130) +

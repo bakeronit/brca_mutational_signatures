@@ -378,7 +378,7 @@ result_df |>
 
 ```{r, germline_classification_hrdsum,  fig.width=9, fig.height=3.2}
 result_df |>
-  mutate(hr_status=ifelse(HRDsum>42,"HRD","non-HRD")) |> 
+  mutate(hr_status=ifelse(HRDsum>=42,"HRD","non-HRD")) |> 
   ggplot(aes(x=hr_status, fill=hr_status)) +
   geom_bar() + 
   geom_text(stat='count', aes(x=hr_status,label=..count..), vjust=-.2, size=4) +
@@ -394,7 +394,7 @@ result_df |>
 ```{r, germline_classification_all,  fig.width=9, fig.height=7.2}
 result_df |>
   mutate(HRDetect=ifelse(Probability>=0.7,"HRD","non-HRD"), 
-         HRDsum=ifelse(HRDsum>42,"HRD","non-HRD"), 
+         HRDsum=ifelse(HRDsum>=42,"HRD","non-HRD"), 
          CHORD=ifelse(hr_status=="HR_deficient","HRD","non-HRD") ) |> 
   select(cohort, sample_id, updated_germline_classification, HRDetect, CHORD, HRDsum) |> 
   pivot_longer(c(HRDetect, CHORD, HRDsum)) |> 
