@@ -31,7 +31,7 @@ cut --complement -f 5| \
 sort | uniq > BRCA.germline_snv.annotation.tsv
 ```
 
-After curation, each variant was labbelled as A, B, C, D, E, F class as below:
+After curation, each variant was labelled as A, B, C, D, E, F class as below:
 
 
 ```{r}
@@ -52,12 +52,12 @@ tibble("Variant class" = variant_class, "Criteria" = criteria, "N"=num_of_varian
 
 ```
 
-Next, we went through each sample, and labelled them as BRCA1/2_positive or BRCA1/2_negative using [labbel_individual.py](scripts/labbel_individual.py). Furthermore, to avoid the noise from pathogenic variants of other genes, we excluded samples if P/LP variants of other genes (class A) or VUS of other genes(class B) were present in one. In addition, we separated individuals with VUS_BRCA (class E) variants but not others as the Additional group for further investigation. 
+Next, we went through each sample, and labelled them as BRCA1/2_positive or BRCA1/2_negative using [label_individual.py](scripts/label_individual.py). Furthermore, to avoid the noise from pathogenic variants of other genes, we excluded samples if P/LP variants of other genes (class A) or VUS of other genes(class B) were present in one. In addition, we separated individuals with VUS_BRCA (class E) variants but not others as the Additional group for further investigation. 
 
 ```bash
 cut -f1,2,3,4,8,100 BRCA.germline_snvs.annotation_cf.final.txt > germline_mutation_classification.txt. # get chr, position, ref, alt, gene_name, (variant_class) columns in xlsx from CF.
 for file in *.filtered.tsv; do 
-  python labbel_individual.py $file >> sample_classification.txt
+  python label_individual.py $file >> sample_classification.txt
 done
 ```
 
@@ -209,13 +209,13 @@ Furthermore, depending on whether the mutation is present in BRCA1 or BRCA2, we 
 **The number of samples in each detailed category**
 
 ```{r, snv_germline_classification_combined,  fig.width=9, fig.height=4.8}
-group_labbeller <- c("additional_brca1"="Additional BRCA1","additional_brca2"="Additional BRCA2", "exclude"="Exclude","negative_brca1/2"="Negative BRCA1/2", "positive_brca1"="Positive BRCA1", "positive_brca2"="Positive BRCA2")
+group_labeller <- c("additional_brca1"="Additional BRCA1","additional_brca2"="Additional BRCA2", "exclude"="Exclude","negative_brca1/2"="Negative BRCA1/2", "positive_brca1"="Positive BRCA1", "positive_brca2"="Positive BRCA2")
 
 df |> filter(hr_status_combined!="Inconsistent") |> 
   ggplot(aes(x=hr_status_combined, fill=hr_status_combined)) +
   geom_bar() + 
   geom_text(stat='count', aes(x=hr_status_combined,label=..count..), vjust=-.2, size=4) +
-  facet_grid(~germline_classification, labeller = labeller(germline_classification=group_labbeller)) +
+  facet_grid(~germline_classification, labeller = labeller(germline_classification=group_labeller)) +
   scale_fill_manual(values=c("#0073C2","#EFC000")) +
   labs(x="",y="Count", fill="HR status") + ylim(0,150) +
   theme_Publication() +
@@ -334,12 +334,34 @@ read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.add_somatic.tsv") |> head(5
   as_raw_html()
 ```
 
+**The number of individuals labelled as different groups for 4 cohorts**
+
+```{r germline_classification_cohort, fig.width=7.6, fig.height=3.2}
+group_color_mapping <- c("additional_brca1"="#0099B4", "additional_brca2"="#FDAF91" , "exclude" = "#1B1919", "negative_brca1/2"="#ADB6B6", "positive_brca1" = "#00468B", "positive_brca2"="#ED0000")
+
+result_df |>
+  count(cohort,updated_germline_classification) |> 
+  complete(cohort,updated_germline_classification) |> 
+  mutate(n = replace_na(n, 0), cohort=factor(cohort, levels=cohort_levels)) |> 
+  mutate(updated_germline_classification = factor(updated_germline_classification, levels=c("positive_brca1","positive_brca2","additional_brca1", "additional_brca2","exclude","negative_brca1/2"))) |> 
+  ggplot(aes(x = cohort, y = n, fill = updated_germline_classification)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.7) +
+  geom_text(aes(label = n),position = position_dodge(width = 0.7),vjust = -0.5, size=2.5) +
+  theme_Publication() +
+  scale_fill_manual(labels = group_labeller, values = group_color_mapping) + 
+  labs(x = "", y = "Count", fill = "Germline classification") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
+```
+
+
+**The number of samples in each group based on the combined HRD prediction between HRDetect and CHORD**
+
 ```{r, germline_classification_combined,  fig.width=9, fig.height=4.8}
 result_df |> filter(hr_status_combined!="Inconsistent") |> 
   ggplot(aes(x=hr_status_combined, fill=hr_status_combined)) +
   geom_bar() + 
   geom_text(stat='count', aes(x=hr_status_combined,label=..count..), vjust=-.2, size=4) +
-  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labeller)) +
   scale_fill_manual(values=c("#0073C2","#EFC000")) +
   labs(x="",y="Count", fill="HR status") + ylim(0,150) +
   theme_Publication() +
@@ -356,7 +378,7 @@ result_df |>
   ggplot(aes(x=hr_status, fill=hr_status)) +
   geom_bar() + 
   geom_text(stat='count', aes(x=hr_status,label=..count..), vjust=-.2, size=4) +
-  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labeller)) +
   scale_fill_manual(values=c("#0073C2","#EFC000")) +
   labs(x="",y="Count", fill="HR status") + ylim(0,150) +
   theme_Publication() +
@@ -369,7 +391,7 @@ result_df |>
   ggplot(aes(x=hr_status, fill=hr_status)) +
   geom_bar() + 
   geom_text(stat='count', aes(x=hr_status,label=..count..), vjust=-.2, size=4) +
-  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labeller)) +
   scale_fill_manual(values=c("#0073C2","#EFC000")) +
   labs(x="",y="Count", fill="HR status") + ylim(0,150) +
   theme_Publication() +
@@ -382,7 +404,7 @@ result_df |>
   ggplot(aes(x=hr_status, fill=hr_status)) +
   geom_bar() + 
   geom_text(stat='count', aes(x=hr_status,label=..count..), vjust=-.2, size=4) +
-  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  facet_grid(~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labeller)) +
   scale_fill_manual(values=c("#0073C2","#EFC000")) +
   labs(x="",y="Count", fill="HR status") + ylim(0,150) +
   theme_Publication() +
@@ -401,7 +423,7 @@ result_df |>
   ggplot(aes(x=value, fill=value)) +
   geom_bar() + 
   geom_text(stat='count', aes(x=value,label=..count..), vjust=-.2, size=4) +
-  facet_grid(name~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labbeller)) +
+  facet_grid(name~updated_germline_classification, labeller = labeller(updated_germline_classification=group_labeller)) +
   scale_fill_manual(values=c("#0073C2","#EFC000")) +
   labs(x="",y="Count", fill="HR status") + ylim(0,150) +
   theme_Publication() +
