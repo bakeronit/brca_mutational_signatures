@@ -11,6 +11,7 @@ library(data.table)
 library(vcfR)
 library(gt)
 library(RColorBrewer)
+library(googlesheets4)
 source("scripts/plot_utils.R")
 config <- read_yaml("config.yaml")
 cohort_labbeller <- c("familial"="Familial Breast","tcga"="TCGA-BRCA", "magic"="MAGIC","qimprove"="Q-IMPROvE")
@@ -151,7 +152,7 @@ df_vcf_all |> mutate(cohort=case_when(grepl("FBC",sample_id) ~ "familial",
 ```{r supplementary_fig4, fig.width=9.2, fig.height=3.6, warning=FALSE}
 sv_df <- list.files("data/GRCh38", pattern = "*.sv.tsv", full.names = TRUE, recursive = TRUE) |> 
   set_names(\(x) basename(x) |> str_remove(".sv.tsv")) |> map(\(x) read_tsv(x,col_types = list(col_character(),col_double()))) |> 
-  list_rbind(names_to = "sample") |> mutate(sv_len=ifelse(is.na(sv_len),0, sv_len)) |> 
+  list_rbind(names_to = "sample") |> mutate(sv_len=ifelse(is.na(sv_len), 0, sv_len)) |> 
   mutate(cohort=case_when(grepl("FBC",sample) ~ "familial",
                           grepl("TCGA",sample) ~ "tcga",
                           grepl("MAGIC",sample) ~ "magic",
@@ -166,4 +167,40 @@ sv_df |> ggplot(aes(x=sample_id,fill=sv_type)) + geom_bar(stats="count") +
   scale_fill_manual(values = c("#386cb0","#f87f01","#7fc97f","#ef3b2c"), labels=c("DEL","INS/DUP","INV","TRA")) +
   theme_Publication() + labs(x="Sample",y="SV count", fill="") + 
   theme(axis.ticks.x = element_blank(), axis.text.x = element_blank(), legend.position = "bottom")
+```
+
+All these data has been presented in [Supplementary table 1](https://docs.google.com/spreadsheets/d/1rgva1pfGp3ScCln8a0WScAAEoazS1-dUu5NfeF_1AD0/edit?usp=sharing).
+
+```{r, write_google_sheet}
+google_sheet_supp1 <- sv_df |> group_by(sample_id) |> summarise(total_sv=n()) |> ungroup() |> 
+  full_join(df_vcf_all, by="sample_id") |> 
+  full_join(df_all) |> 
+  full_join(depth_df) |> 
+  replace_na(list(total_sv=0)) |> 
+  mutate(Study=case_when(studyLabel=="Simpson_-_FamilialBreast" ~ "Familial Breast",
+                          studyLabel=="TCGA_-_breast_cancer" ~ "TCGA-BRCA",
+                          studyLabel=="Waddell_-_Magic_WGS" ~ "MAGIC",
+                          studyLabel=="qimprove" ~ "Q-IMPROvE")) |> 
+  select(sample_id, Study, t_depth, n_depth, ascatPurityScore, TMB_nonSyn, snv, indel, total_sv) |> 
+  arrange(Study) |> 
+  rename("Sample ID" = sample_id,"SV" = total_sv, "Tumour depth" = t_depth, "Normal depth" = n_depth, "Tumour purity" = ascatPurityScore, "TMB" = TMB_nonSyn, "SNV" = snv, "Indel" = indel, "SV" = total_sv) 
+
+google_sheet_supp1 |> head(5) |> gt() |> as_raw_html()
+
+```
+
+```{r, eval=FALSE}
+#don't want to set up this as non interative auth at the moment.
+library(httr)
+set_config(use_proxy(url=config$proxy_url,port=8080, username = config$proxy_user, password = config$proxy_passwd))
+
+gs4_auth()
+
+google_sheet_supp1 |> 
+  write_sheet(
+    ss = gs4_get(
+      config$google_sheet_id
+    ),
+    sheet = "Supp-table1"
+  )
 ```
