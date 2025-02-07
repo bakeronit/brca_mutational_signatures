@@ -53,8 +53,9 @@ my_plot_contribution <- function (contribution, signatures = NA, index = NA, coo
   return(plot)
 }
 
+`%notin%` <- Negate(`%in%`)
 
-cohort_levels <- c("Familial Breast","TCGA","MAGIC","Q-IMPROvE")
+cohort_levels <- c("Familial Breast","TCGA-BRCA","MAGIC","Q-IMPROvE")
 
 
 # credit: [@koundy/ggplot_theme_Publication](https://github.com/koundy/ggplot_theme_Publication/tree/master)

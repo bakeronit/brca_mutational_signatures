@@ -30,24 +30,24 @@ df_hrd <- hrdetect_hrd |>  inner_join(chord_hrd, by = "sample") |>
                                  HRDetect<0.7 & hr_status=="HR_proficient" ~ "non-HRD", 
                                  TRUE~"Inconsistent" ) ) |> 
   mutate(cohort=case_when(grepl("FBC",sample_id) ~ "Familial Breast",
-                                     grepl("TCGA",sample_id) ~ "TCGA",
+                                     grepl("TCGA",sample_id) ~ "TCGA-BRCA",
                                      grepl("MAGIC",sample_id) ~ "MAGIC",
                                      TRUE ~ "Q-IMPROvE"),
-         cohort=factor(cohort, levels=c("Familial Breast","TCGA","MAGIC","Q-IMPROvE"))) 
+         cohort=factor(cohort, levels=cohort_levels)) 
 
 hrdsum <- read_tsv("results/hrdsum_355.tsv") |> separate_wider_delim(sample,".", names = c("sample_id","tumour_id"), too_few = "align_start") |> 
   filter(!tumour_id %in% extra_tumours) |> select(-tumour_id)
 
 
-df_hrd |> filter(hr_status_combined=="Inconsistent") |> left_join(hrdsum) |> select(sample_id, HRDetect,CHORD, `HRD-sum`) |> knitr::kable()
+df_hrd |> filter(hr_status_combined=="Inconsistent") |> left_join(hrdsum) |> select(sample_id, cohort,HRDetect,CHORD, `HRD-sum`) |> knitr::kable()
 ```
 
 
-```{r hrd_comparison_fig1, fig.width=6.8, fig.height=5}
+```{r hrd_comparison_fig1, fig.width=9, fig.height=9}
 p1 <- df_hrd |> mutate(hr_status_combined=factor(hr_status_combined,levels=c("HRD","non-HRD","Inconsistent"))) |> 
   ggplot(aes(x=CHORD,y=HRDetect, color=hr_status_combined)) + 
-  geom_point(size=2.5, alpha=.6) + scale_color_manual(values=c("#0073C2","#EFC000","grey")) + 
-  ggrepel::geom_label_repel(data=df_hrd |> filter(hr_status_combined=="Inconsistent"), aes(label=sample_id), size=1.6, color="black") + 
+  geom_point(size=3, alpha=.8) + scale_color_manual(values=c("#0073C2","#EFC000","grey")) + 
+  ggrepel::geom_label_repel(data=df_hrd |> filter(hr_status_combined=="Inconsistent"), aes(label=sample_id), size=3.6, color="black") + 
   geom_vline(xintercept = 0.5, color="darkgrey", lty=2, linewidth=1) + geom_hline(yintercept=0.7, lty=2, linewidth=1, color="darkgrey") + 
   labs(x="CHORD",y="HRDetect", color="") + theme_Publication() + theme(panel.border = element_rect(colour = 'black'))
 p1
@@ -63,7 +63,7 @@ p2 <- ggplot() + geom_bar(data=df_hrd |>  mutate(hr_status_combined=factor(hr_st
   geom_text(data=df_tmp, aes(x=cohort, y=total, label=paste0(n,"/",total)), vjust=-.1, color="black") +
   scale_fill_manual(values=c("#0073C2","#EFC000","grey"))+ 
   theme_Publication() + labs(x="",y="Number of samples", fill="HR status") + 
-  theme(legend.position = "bottom")  
+  theme(legend.position = "bottom", axis.text.x = element_text(size=9))  
 
 p2 
 ```
@@ -79,6 +79,87 @@ p3 <- chord_brca12 |> filter(hr_status_combined=="HRD") |>
   ggplot(aes(x=cohort,fill=hrd_type)) + geom_bar() + scale_fill_manual(values=my_blues, labels=c("BRCA1","BRCA2","Undetermined")) +
   #geom_text(aes(label=..count..),stat = "count", vjust =1.5,position = "stack", size=3.2) + 
   theme_Publication() + labs(x="",y="Number of samples", fill="HRD type") + 
-  theme(legend.position = "bottom") 
+  theme(legend.position = "bottom", axis.text.x = element_text(size=9)) 
 p3
 ```
+
+
+```{r Figure-2abc, fig.height=9, fig.width=3.5, warning=FALSE}
+result_df <- read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.tsv")
+pa<- 
+  result_df |> select(sample_id,HRDsum) |> 
+  arrange(desc(HRDsum)) |> 
+  mutate(sample_id=factor(sample_id,levels=sample_id)) |> 
+  ggplot(aes(x=sample_id, y=HRDsum)) +
+  geom_point(alpha=.6, color="#36454F") + 
+  geom_hline(yintercept = 42, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=50, label="cutoff=42", size=3.6, color="black") +
+  theme_Publication() + labs(x="Tumour samples",y="Score", title="HRDsum") + 
+  theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank(), plot.title = element_text(face="plain", size=rel(0.8),hjust = 0.5, vjust=-4)) 
+
+pb<- 
+  result_df |> select(sample_id,Probability) |> 
+  arrange(desc(Probability)) |> 
+  mutate(sample_id=factor(sample_id,levels=sample_id)) |> 
+  ggplot(aes(x=sample_id, y=Probability)) +
+  geom_point(alpha=.6, color="#36454F") + 
+  geom_hline(yintercept = 0.7, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=0.78, label="cutoff=0.7", size=3.6, color="black") +
+  theme_Publication() + labs(x="Tumour samples",y="Probability", title="HRDetect") + 
+  theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank(), plot.title = element_text(face="plain", size=rel(0.8),hjust = 0.5, vjust=-4))
+
+
+pc<- 
+  result_df |> select(sample_id,p_hrd) |> 
+  arrange(desc(p_hrd)) |> 
+  mutate(sample_id=factor(sample_id,levels=sample_id)) |> 
+  ggplot(aes(x=sample_id, y=p_hrd)) +
+  geom_point(alpha=.6, color="#36454F") + 
+  geom_hline(yintercept = 0.5, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=0.57, label="cutoff=0.5", size=3.6, color="black") +
+  theme_Publication() + labs(x="Tumour samples",y="Probability", title="CHORD") + 
+  theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank(), plot.title = element_text(face="plain", size=rel(0.8),hjust = 0.5, vjust=-4))
+
+pa/pb/pc
+
+```
+
+```{r figure2e, fig.width=12.2, fig.height=3.6, warning=FALSE}
+group_color_mapping <- c("additional"="#0099B4", "exclude" = "#FDAF91", "negative_brca1/2"="#ADB6B6", "positive_brca1" = "#00468B", "positive_brca2"="#ED0000")
+group_labeller <- c("additional_brca1"="VUS BRCA1","additional_brca2"="VUS BRCA2","additional"="VUS BRCA1/2", "exclude"="Exclude","negative_brca1/2"="Negative BRCA1/2", "positive_brca1"="Positive BRCA1", "positive_brca2"="Positive BRCA2")
+
+plot_df <- result_df |> 
+  mutate(updated_germline_classification=ifelse(startsWith(updated_germline_classification, prefix="additional"),"additional",updated_germline_classification)) |> 
+  mutate(HRDetect=ifelse(Probability>=0.7,"HRD","non-HRD"), 
+         HRDsum=ifelse(HRDsum>=42,"HRD","non-HRD"), 
+         CHORD=ifelse(hr_status=="HR_deficient","HRD","non-HRD") ) |> 
+  select(cohort, sample_id, updated_germline_classification, HRDetect, CHORD, HRDsum) |> 
+  pivot_longer(c(HRDetect, CHORD, HRDsum), names_to = "tool", values_to = "hr_status") |>
+  mutate(updated_germline_classification=factor(updated_germline_classification, levels=c("positive_brca1","positive_brca2","exclude","additional","negative_brca1/2"))) |> 
+  mutate(type=ifelse(updated_germline_classification %in% c("positive_brca1","positive_brca2"),"black","white")) 
+
+label_df <- plot_df %>% group_by(tool,hr_status) %>% summarise(n=n())
+
+pe <- plot_df |> 
+  ggplot(aes(x=tool)) +
+  geom_bar(position="fill",width=0.55,aes(fill=updated_germline_classification)) + facet_grid(~hr_status) + scale_fill_manual(values=group_color_mapping, labels=group_labeller) +
+  geom_label(data=plot_df |> filter(hr_status!="non-HRD" | updated_germline_classification %notin% c("positive_brca1","positive_brca2")),
+             aes(label=..count.., color=type, fill=updated_germline_classification),
+             stat="count",position="fill",size=3.6,hjust=1.1,show.legend = FALSE) + scale_color_manual(values=c("white","black")) +
+  geom_label(data=plot_df |> filter(hr_status=="non-HRD" & updated_germline_classification %in% c("positive_brca1","positive_brca2")),
+             aes(label=..count.., color=type, fill=updated_germline_classification),
+             stat="count",position="fill",size=3.6, hjust=-.1,show.legend = FALSE) + 
+  geom_text(data=label_df,aes(x=tool,y=0.5, label=paste0("Total=",n)),
+            position = position_dodge(0.9),vjust=-1.5, fontface="bold") +
+  facet_grid(~hr_status, scales = "free_x") + coord_flip() +
+  labs(x="",y="Proportion", fill="Germline classification") +
+  theme_Publication() +
+  theme(strip.text = element_text(size=10), legend.position = "bottom", legend.title = element_text(size=11), legend.text = element_text(size=11))
+pe
+```
+
+
+
+
+
+
+
+
+

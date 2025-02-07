@@ -32,7 +32,7 @@ In this analysis, we included whole-genome sequencing (WGS) data of pairs of pri
 
 These datasets were used to call somatic variants from HRD prediction and to call germline variants for germline BRCA1 and BRCA2 classification. 
 
-All samples were processed with a uniform pipeline and wWe applied the dual calling pipeline for analysing WGS data of tumour samples with matched germline samples to identify somatic SNV and indel changes. Specifically, we aligned the short-read sequencing reads to the human genome assembly (GRCh38) using BWA, and high confident somatic SNV were identified as the intersect of post-filtered output of qSNP (cite) and GATK HaplotypeCaller (cite). Short insertion and deletions (1-50bp) were called with the GATK HaplotyperCaller. Mutations were annotated with qannotate and SnpEff to identify somatic-specific mutations and filter mutations located within 6 base pairs of a homopolymer region.
+All samples were processed with a uniform pipeline and we applied the dual calling pipeline for analysing WGS data of tumour samples with matched germline samples to identify somatic SNV and indel changes. Specifically, we aligned the short-read sequencing reads to the human genome assembly (GRCh38) using BWA, and high confident somatic SNV were identified as the intersect of post-filtered output of qSNP (cite) and GATK HaplotypeCaller (cite). Short insertion and deletions (1-50bp) were called with the GATK HaplotyperCaller. Mutations were annotated with qannotate and SnpEff to identify somatic-specific mutations and filter mutations located within 6 base pairs of a homopolymer region.
 
 
 ```{r, message=FALSE}

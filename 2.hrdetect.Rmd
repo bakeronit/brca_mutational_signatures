@@ -62,12 +62,14 @@ df_hrd <- read_tsv("results/hrdetect_hrdprediction_355.tsv") |>
   select(sample_id, Probability) |> 
   arrange(desc(Probability)) |> 
   mutate(sample_id=factor(sample_id, levels=sample_id)) 
-df_hrd |> 
+p_hrdetect_threshold <- df_hrd |> 
   ggplot(aes(x=sample_id, y=Probability )) + geom_point(alpha=.6, color="#3B4992") + 
-  geom_hline(yintercept = 0.7, color="grey", lty=2, linewidth=1) +
-  labs(x="Tumour samples", y="HRD probability (HRDetect)") +
+  geom_hline(yintercept = 0.7, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=0.78, label="cutoff=0.7", size=3.6, color="black") +
+  labs(x="Tumour samples", y= stringr::str_wrap("HRD probability (HRDetect)", 15)) +
   theme_Publication() +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) 
+
+p_hrdetect_threshold
 ```
 
 **Figure 1: The HRD probability scores for all tumour samples**
@@ -75,10 +77,10 @@ df_hrd |>
 ```{r hrdetect_fig2, fig.height=4, fig.width=9}
 df_hrd |> 
   mutate(cohort=case_when(grepl("FBC",sample_id) ~ "Familial Breast",
-                                     grepl("TCGA",sample_id) ~ "TCGA",
+                                     grepl("TCGA",sample_id) ~ "TCGA-BRCA",
                                      grepl("MAGIC",sample_id) ~ "MAGIC",
                                      TRUE ~ "Q-IMPROvE"),
-         cohort=factor(cohort, levels=c("Familial Breast","TCGA","MAGIC","Q-IMPROvE")))  |> 
+         cohort=factor(cohort, levels=cohort_levels))  |> 
   ggplot(aes(x=sample_id, y=Probability )) + geom_point(alpha=.6, color="#3B4992") + 
   geom_hline(yintercept = 0.7, color="grey", lty=2, linewidth=1) + facet_grid(~cohort, scales = "free_x",space = "free_x") + 
   theme_Publication() +
@@ -91,10 +93,10 @@ df_hrd |>
 ```{r hrdetect_fig3, fig.width=7, fig.height=4.5, warning=FALSE}
 df_hrd |> 
   mutate(cohort=case_when(grepl("FBC",sample_id) ~ "Familial Breast",
-                                     grepl("TCGA",sample_id) ~ "TCGA",
+                                     grepl("TCGA",sample_id) ~ "TCGA-BRCA",
                                      grepl("MAGIC",sample_id) ~ "MAGIC",
                                      TRUE ~ "Q-IMPROvE"),
-         cohort=factor(cohort, levels=c("Familial Breast","TCGA","MAGIC","Q-IMPROvE"))) |> 
+         cohort=factor(cohort, levels=cohort_levels)) |> 
   mutate(type=ifelse(Probability>=0.7, "HRD","non-HRD")) |> 
   ggplot(aes(x=type,fill=type)) + geom_bar() + 
   geom_text(stat='count', aes(label=..count..), vjust=-.1) +
@@ -161,9 +163,4 @@ df_hrd_magic |> left_join(df_hrd_magic_corrected, by="tumour_id") |>
 ```
 
 **Figure 4: The HRD prediction scores before and after FFPE signature correction**
-
-
-```{r}
-df_hrd
-```
 

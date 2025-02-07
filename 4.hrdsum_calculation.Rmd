@@ -52,7 +52,7 @@ df_hrdsum <- read_tsv("results/chord_hrdprediction_355.tsv") |>
                              TRUE~sample)) |> 
   filter(!tumour_id %in% extra_tumours) |> 
   mutate(cohort=case_when(startsWith(sample,"MAGIC")~"MAGIC",
-                          startsWith(sample,"TCGA")~"TCGA",
+                          startsWith(sample,"TCGA")~"TCGA-BRCA",
                           startsWith(sample,"FBC")~"Familial Breast",
                           startsWith(sample,"GQ")~"Q-IMPROvE")) |> 
   arrange(desc(`HRD-sum`)) |> 
@@ -64,12 +64,14 @@ df_hrdsum <- read_tsv("results/chord_hrdprediction_355.tsv") |>
 There is no threshold for HRDsum score for distinguishing HRD samples from non-HRD samples.
 
 ```{r hrdsum_fig1, fig.width=4, fig.height=4}
-df_hrdsum |> 
+p_hrdsum_threshold <- df_hrdsum |> 
   ggplot(aes(x=sample_id, y=`HRD-sum`)) +
   geom_point(alpha=.6, color="#3B4992") + 
-  geom_hline(yintercept = 42, color="grey", lty=2, linewidth=1) + 
-  theme_Publication() + labs(x="Tumour samples",y="HRDsum score") + 
+  geom_hline(yintercept = 42, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=50, label="cutoff=42", size=3.6, color="black") +
+  theme_Publication() + labs(x="Tumour samples",y=stringr::str_wrap("HRDsum score", 10)) + 
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+p_hrdsum_threshold
 ```
 
 **Figure 1: The HRDsum scores for tumour samples**
