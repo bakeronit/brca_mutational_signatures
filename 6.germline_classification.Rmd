@@ -383,7 +383,7 @@ allu_df <-  result_df |> select(cohort, A, B, C, D, C, E, F, sample_id, updated_
   group_by(cohort, germline_classification) |> mutate(n=n()) 
 
 need_repel <- c("Q-IMPROvE", "positive_brca1","positive_brca2", "additional")
-alluvial_labeller <- c("BRCA1/2 VUS","Exclude","Negative BRCA1/2", "Postive BRCA1", "Positive BRCA2", stringr::str_wrap("Familial Breast", 5),"MAGIC","TCGA-BRCA","Q-IMPROvE", "Yes","No")
+alluvial_labeller <- c("VUS BRCA1/2 ","Exclude","Negative BRCA1/2", "Postive BRCA1", "Positive BRCA2", stringr::str_wrap("Familial Breast", 5),"MAGIC","TCGA-BRCA","Q-IMPROvE", "Yes","No")
 names(alluvial_labeller) <- c("additional","exclude","negative_brca1/2","positive_brca1","positive_brca2","Familial Breast","MAGIC","TCGA-BRCA","Q-IMPROvE", "yes","no")
 
 
@@ -431,7 +431,7 @@ p_germline_classification_by_cohort <- result_df |>
   scale_fill_manual( labels=alluvial_labeller,values = group_color_mapping) + 
   labs(x = "", y = "Count", fill = "") +
   scale_y_continuous(expand = expansion(mult = c(.2, 0.16))) +
-  theme(axis.title.y=element_text(vjust=-12))
+  theme(axis.title.y=element_text(vjust=-12), legend.text = element_text(size=10), legend.title = element_text(size=10))
 
 
 p_allu / p_germline_classification_by_cohort + plot_layout(heights = c(0.88,0.12))
