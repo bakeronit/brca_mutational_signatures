@@ -151,12 +151,12 @@ pn <- partynode(1L, split = sp_a, kids = list(
   partynode(3L, split = sp_d, kids = list(
     partynode(5L, split = sp_e, kids = list(
       partynode(7L, split = sp_b, kids = list(
-        partynode(9L, info = "Negative BRCA1/2"),
+        partynode(9L, info = "BRCA1/2 negative"),
         partynode(8L, info = "Excluded VUS")
       )),
-      partynode(6L, info = "VUS BRCA1/2")
+      partynode(6L, info = "BRCA1/2")
     )),
-    partynode(4L, info = "Positive BRCA1/2")
+    partynode(4L, info = "BRCA1/2 positive")
   )),
   partynode(2L, info = "Excluded P/LP")
 ))
@@ -209,7 +209,7 @@ Furthermore, depending on whether the mutation is present in BRCA1 or BRCA2, we 
 **The number of samples in each detailed category**
 
 ```{r, snv_germline_classification_combined,  fig.width=9, fig.height=4.8}
-group_labeller <- c("additional_brca1"="VUS BRCA1","additional_brca2"="VUS BRCA2", "exclude"="Exclude","negative_brca1/2"="Negative BRCA1/2", "positive_brca1"="Positive BRCA1", "positive_brca2"="Positive BRCA2")
+group_labeller <- c("additional_brca1"="BRCA1 VUS","additional_brca2"="BRCA2 VUS", "exclude"="Exclude","negative_brca1/2"="BRCA1/2 negative", "positive_brca1"="BRCA1 positive", "positive_brca2"="BRCA2 positive")
 
 df |> filter(hr_status_combined!="Inconsistent") |> 
   ggplot(aes(x=hr_status_combined, fill=hr_status_combined)) +
@@ -383,7 +383,7 @@ allu_df <-  result_df |> select(cohort, A, B, C, D, C, E, F, sample_id, updated_
   group_by(cohort, germline_classification) |> mutate(n=n()) 
 
 need_repel <- c("Q-IMPROvE", "positive_brca1","positive_brca2", "additional")
-alluvial_labeller <- c("VUS BRCA1/2 ","Exclude","Negative BRCA1/2", "Postive BRCA1", "Positive BRCA2", stringr::str_wrap("Familial Breast", 5),"MAGIC","TCGA-BRCA","Q-IMPROvE", "Yes","No")
+alluvial_labeller <- c("BRCA1/2 VUS ","Exclude","BRCA1/2 negative", "BRCA1 positive", "BRCA2 positive", stringr::str_wrap("Familial Breast", 5),"MAGIC","TCGA-BRCA","Q-IMPROvE", "Yes","No")
 names(alluvial_labeller) <- c("additional","exclude","negative_brca1/2","positive_brca1","positive_brca2","Familial Breast","MAGIC","TCGA-BRCA","Q-IMPROvE", "yes","no")
 
 

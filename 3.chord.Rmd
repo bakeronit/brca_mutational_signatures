@@ -43,7 +43,7 @@ df_hrd <- df_chord[1:6] |> mutate(cohort=case_when(
   startsWith(sample, "GQ") ~ "Q-IMPROvE",
   TRUE ~ "Unknown"
 ),
-  hr_status = ifelse(hr_status=="HR_deficient", "HRD", "non-HRD")) |> 
+  hr_status = ifelse(hr_status=="HR_deficient", "HRD", "HRP")) |> 
   separate_wider_delim(sample,".", names = c("sample_id","tumour_id"), too_few = "align_start") |> 
   filter(!tumour_id %in% extra_tumours) |> select(-tumour_id) |> 
   arrange(desc(p_hrd) ) |> mutate(sample_id=factor(sample_id,levels=sample_id),
@@ -146,7 +146,7 @@ The likelihood ratio test was performed to evaluate how strong if having a germl
 result_df <- read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.add_somatic.tsv")
 mosaic_df <-result_df |> select(cohort,sample_id, updated_germline_classification, hr_status, hrd_type) |> 
   filter(updated_germline_classification %in% c("positive_brca1","positive_brca2","negative_brca1/2")) |> 
-  mutate(hr_status=ifelse(hr_status=="HR_deficient","HRD","non-HRD"),
+  mutate(hr_status=ifelse(hr_status=="HR_deficient","HRD","HRP"),
          updated_germline_classification=factor(updated_germline_classification, levels=c("negative_brca1/2","positive_brca1","positive_brca2")))
 
 ggplot(mosaic_df) + geom_mosaic(aes(x=product(hr_status,updated_germline_classification), fill=hr_status)) + 
@@ -154,11 +154,11 @@ ggplot(mosaic_df) + geom_mosaic(aes(x=product(hr_status,updated_germline_classif
   scale_fill_manual(values=c("#0073C2","#EFC000")) + theme_Publication() +
   labs(x="", y="", fill="HR status") + 
    scale_y_productlist(
-    labels = c("HRD","non-HRD"),
+    labels = c("HRD","HRP"),
     expand = c(0, 0)
   ) +
    scale_x_productlist(
-    labels = c("Negative BRCA1/2",stringr::str_wrap("Positive BRCA1", 6),stringr::str_wrap("Positive BRCA2", 6)),
+    labels = c("BRCA1/2 negative",stringr::str_wrap("BRCA1 positive", 6),stringr::str_wrap("BRCA2 positive", 6)),
     expand = c(0, 0.01)
   ) +
   theme(axis.text.x=element_text(size=8), 
@@ -177,26 +177,27 @@ pb <- mosaic_df |>
   filter(hrd_type!="cannot_be_determined") |> 
   ggplot() + geom_mosaic(aes(x=product(hrd_type, updated_germline_classification), fill=hrd_type)) + 
   geom_mosaic_text(aes(x = product(hrd_type,updated_germline_classification), label = after_stat(.wt)), as.label=TRUE, size=3.2) +
-  scale_fill_manual(values=c(my_blues[1:2], "#EFC000"), labels=c("BRCA1","BRCA2","non-HRD")) +
+  scale_fill_manual(values=c(my_blues[1:2], "#EFC000"), labels=c("HRD(BRCA1)","HRD(BRCA2)","HRP")) +
   labs(x="", y="", fill="HR status") + 
   scale_y_productlist(
-    labels = c("HRD (BRCA1)", "HRD (BRCA2)","non-HRD"),
+    labels = c("HRD (BRCA1)","HRD (BRCA2)","HRP"),
     expand = c(0, 0)
   ) +
    scale_x_productlist(
-    labels = c("Negative BRCA1/2",stringr::str_wrap("Positive BRCA1", 6),stringr::str_wrap("Positive BRCA2", 6)),
+    labels = c("BRCA1/2 negative",stringr::str_wrap("BRCA1 positive", 6),stringr::str_wrap("BRCA2 positive", 6)),
     expand = c(0, 0.01)
   ) +
   theme_Publication() + 
   theme(axis.text.x=element_text(size=8), 
         axis.line.y = element_blank(), 
         axis.line.x = element_blank(), 
-        axis.text.y=element_text(size=7.8),
+        axis.text.y=element_blank(),
         axis.ticks = element_blank(),
         legend.text = element_text(size=8), 
         legend.title = element_text(size=9), legend.margin = margin(0,0,0,0), legend.box.margin=margin(-10,-10,-10,-10))
 
 pb
+#ggsave("figures/figure3b.pdf", pb, height = 4.6, width = 5)
 ```
 
 
@@ -204,9 +205,9 @@ pb
 
 ```{r figure 3c, fig.height=5.2, fig.width=9}
 group_color_mapping2 <- c("additional"="#0099B4", "exclude_plp" = "#E5735A","exclude" = "#FDAF91", "negative_brca1/2"="#ADB6B6", "positive_brca1" = "#00468B", "positive_brca2"="#ED0000")
-group_labeller2 <- c("VUS BRCA1/2","Exclude P/LP","Exclude VUS","Negative BRCA1/2", "Postive BRCA1", "Positive BRCA2")
+group_labeller2 <- c("BRCA1/2 VUS","Exclude P/LP","Exclude VUS","BRCA1/2 negative", "BRCA1 positive", "BRCA2 positive")
 names(group_labeller2) <- c("additional","exclude_plp","exclude","negative_brca1/2","positive_brca1","positive_brca2")
-hrdtype_labeller <- c(stringr::str_wrap("HRD (BRCA1)",8),stringr::str_wrap("HRD (BRCA2)",8),stringr::str_wrap("HRD (Undetermined)",10), "non-HRD")
+hrdtype_labeller <- c(stringr::str_wrap("HRD (BRCA1)",8),stringr::str_wrap("HRD (BRCA2)",8),stringr::str_wrap("HRD (Undetermined)",10), "HRP")
 names(hrdtype_labeller) <- c("BRCA1_type","BRCA2_type","cannot_be_determined","none")
 
 exclude_plp_df <- result_df |> select(cohort, sample_id, hrd_type, updated_germline_classification, A, class_A_mutations, pathSV) |> filter(A>0) |> 
@@ -215,6 +216,12 @@ exclude_plp_df <- result_df |> select(cohort, sample_id, hrd_type, updated_germl
                         str_replace(class_A_mutations,"^\\s*(c\\.[^\\[]+)\\[.*?\\]\\(([^)]+)\\).*$","\\2 (\\1)"))
          ) |> select(hrd_type, variant) |> filter(hrd_type!="none") |>  group_by(hrd_type) |> mutate(row=row_number()) |> ungroup() |> 
   mutate(row=ifelse(hrd_type=="BRCA1_type", row+1, row), col=case_when(hrd_type=="BRCA1_type"~11, hrd_type=="BRCA2_type"~8, TRUE~2))
+
+result_df |> select(cohort, sample_id, hrd_type, updated_germline_classification, A, class_A_mutations, class_E_mutations,E,pathSV) |> filter(A>0 | E>0) |> 
+  filter(hrd_type!="none", startsWith(updated_germline_classification,"additional")) |> 
+  mutate(variant=str_replace_all(class_E_mutations, "c\\.(.*)\\((BRCA\\d+)\\)", "\\2 (\\1)")) |> 
+  select(hrd_type, variant)
+  
 
 
 exclude_plp_text_color <- darken("#E5735A", amount = 0.3) ## kind of match with the box color but darker:)
@@ -234,6 +241,7 @@ pc<-result_df |> select(cohort,sample_id, hrd_type, updated_germline_classificat
             legend.box = "vetical",
          axis.line.y= element_blank(), axis.ticks = element_blank() ,axis.line.x = element_blank(), axis.text = element_blank(), strip.text = element_text(size=8),legend.text = element_text(size=8), legend.title = element_text(size=9))
 pc
+#ggsave("figures/figure3c.pdf", pc, height = 5.2, width = 9)
 ```
 
 
