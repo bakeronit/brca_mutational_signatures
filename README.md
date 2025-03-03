@@ -1,5 +1,5 @@
 
-## BRCA1/2 germline variant curation based on tumour HRD.
+## Integrating breast tumor homologous recombination deficiency status to aid germline BRCA1 and BRCA2 variant classification
 
 Scripts and R code used in the paper:
 
