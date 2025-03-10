@@ -97,7 +97,7 @@ df_hrd |>
                                      grepl("MAGIC",sample_id) ~ "MAGIC",
                                      TRUE ~ "Q-IMPROvE"),
          cohort=factor(cohort, levels=cohort_levels)) |> 
-  mutate(type=ifelse(Probability>=0.7, "HRD","non-HRD")) |> 
+  mutate(type=ifelse(Probability>=0.7, "HRD","HRP")) |> 
   ggplot(aes(x=type,fill=type)) + geom_bar() + 
   geom_text(stat='count', aes(label=..count..), vjust=-.1) +
   facet_grid(~cohort) + ylim(0,130) +

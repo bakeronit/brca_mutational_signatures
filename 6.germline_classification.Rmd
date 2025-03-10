@@ -122,7 +122,7 @@ head(df, n=5) |> gt() |>
 ```{r, warning=FALSE}
 df <- read_tsv("results/brca_germline_clf_tumor_hrd.tsv") 
 df <- df |> mutate(hr_status_combined=case_when(Probability>=0.7 & hr_status=="HR_deficient"~"HRD", 
-                                      Probability<0.7 & hr_status=="HR_proficient" ~ "non-HRD", 
+                                      Probability<0.7 & hr_status=="HR_proficient" ~ "HRP", 
                                       TRUE~"Inconsistent" ) )
 
 
@@ -367,8 +367,6 @@ ggparty(tree3) +
 
 ## The final Figure1.
 
-Figure one is about the germline classification
-
 ```{r germline_classification_alluvium_plot, fig.width=8.6, fig.height=9, warning=FALSE }
 allu_df <-  result_df |> select(cohort, A, B, C, D, C, E, F, sample_id, updated_germline_classification) |>  
   mutate(has_A=ifelse(A>0, "yes", "no") |> factor(levels=c("yes","no")),
@@ -437,4 +435,4 @@ p_germline_classification_by_cohort <- result_df |>
 p_allu / p_germline_classification_by_cohort + plot_layout(heights = c(0.88,0.12))
 ```
 
-**The classification process of 350 inviduals and the number of individuals labelled as different groups in 4 cohorts**
+**Figure 1.The alluvial diagram illustrates the classification of 350 individuals into five colour-coded groups (dark blue: positive for BRCA1; red: positive for BRCA2; pink: Exclude; teal: VUS in BRCA1 or BRCA2; grey: negative for P/LP or VUS in BRCA1 or BRCA2). Individuals were classified into each group based on the four criteria displayed along the y-axis. The bar plot displays the individuals classified into five groups within each patient cohort (Familial Breast, TCGA-BRCA, MAGIC and Q-IMPROVE).**
