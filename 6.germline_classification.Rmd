@@ -154,7 +154,7 @@ pn <- partynode(1L, split = sp_a, kids = list(
         partynode(9L, info = "BRCA1/2 negative"),
         partynode(8L, info = "Excluded VUS")
       )),
-      partynode(6L, info = "BRCA1/2")
+      partynode(6L, info = "BRCA1/2 additional")
     )),
     partynode(4L, info = "BRCA1/2 positive")
   )),

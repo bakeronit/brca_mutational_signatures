@@ -57,7 +57,7 @@ df_hrdsum <- read_tsv("results/chord_hrdprediction_355.tsv") |>
                           startsWith(sample,"GQ")~"Q-IMPROvE")) |> 
   arrange(desc(`HRD-sum`)) |> 
   mutate(sample_id=factor(sample_id,levels=sample_id), 
-         hr_status=ifelse(hr_status=="HR_deficient","HRD", "non-HRD"), 
+         hr_status=ifelse(hr_status=="HR_deficient","HRD", "HRP"), 
          cohort=factor(cohort, levels=cohort_levels))
 ```
 
@@ -86,7 +86,7 @@ df_hrdsum |>
   geom_jitter(position=position_jitter(0.2)) +
   geom_hline(yintercept = 42, linetype=2 ,size=1, color="darkgrey") +
   theme_Publication() + 
-  labs(x="", y="HRDsum score", color="")
+  labs(x="", y="HRDsum score", color="HR status (CHORD)")
 ```
 
 **Figure 2: The HRDsum scores for tumour samples in four cohorts with HRD and non-HRD predicted by CHORD. The grey dash line represent the cut-off value**
