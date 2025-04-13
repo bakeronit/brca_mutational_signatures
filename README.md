@@ -1,5 +1,5 @@
 
-## Integrating breast tumor homologous recombination deficiency status to aid germline BRCA1 and BRCA2 variant classification
+## BRCA1/2 germline variant curation based on tumour HRD.
 
 Scripts and R code used in the paper:
 
@@ -19,7 +19,7 @@ Scripts and R code used in the paper:
 - [HRDsum score calculation](4.hrdsum_calculation.md)
 - [HRD prediction using HRDetect](2.hrdetect.md)
 - [HRD prediction using CHORD](3.chord.md)
-- [HRD precition method comparison](5.hrdprediction_comparison.md)
+- [HRD prediction method comparison](5.hrdprediction_comparison.md)
 
 As CHORD and HRD had consistently predicted tumours as HRD in most
 samples (except 5) and CHORD can further distinguish HRD samples in

@@ -342,37 +342,6 @@ read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.add_somatic.tsv") |>
   write_tsv("results/supplementary-table4.tsv")
 ```
 
-
-Previous tree plot didn't include individuals have inconsistent HRD prediction from HRDetect and CHORD. 
-If just ignore the tumour HRD type, all 350 individuals were classified as different groups by either carries germline variant in category A, E, B or D.
-
-
-```{r supplementary_fig2,fig.height=8, fig.width=15.6, warning=FALSE, eval=FALSE}
-tree_df3 <- df2 |> select(A, B, D, C, E, sample_id) |>  
-  mutate(Carries_A=ifelse(A>0, "yes", "no") |> factor(levels=c("no","yes")),
-         Carries_B=ifelse(B>0, "yes", "no") |> factor(levels=c("no","yes")),
-         Carries_C=ifelse(C>0, "yes", "no") |> factor(levels=c("no","yes")),
-         Carries_D=ifelse(D>0, "yes", "no") |> factor(levels=c("no","yes")),
-         Carries_E=ifelse(E>0, "yes", "no") |> factor(levels=c("no","yes")),
-         Carries_F=ifelse(F>0, "yes", "no") |> factor(levels=c("no","yes")),) |> 
-  select(Carries_A, Carries_B, Carries_C, Carries_D, Carries_E,Carries_F, sample_id) |> 
-  as.data.frame()
-
-
-tree3 <- party(pn,data = tree_df3)
-ggparty(tree3) +
-  geom_edge() +
-  geom_edge_label() +
-  geom_node_splitvar(fontface = "bold") +
-  geom_node_label(aes(label = paste0(info, ", N = ", nodesize)),
-                  fontface = "bold",
-                  ids = "terminal",
-                  size = 2.5) +
-  theme_void()
-```
-
-
-
 ## The final Figure1.
 
 ```{r germline_classification_alluvium_plot, fig.width=8.6, fig.height=9, warning=FALSE }

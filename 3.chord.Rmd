@@ -140,6 +140,7 @@ inner_join(chord_magic, chord_magic_ffpe, by="sample_id") |>
 
 **Figure 4: The HRD prediction scores before and after FFPE signature correction**
 
+## Using CHORD results to aid germline variant classification
 
 The likelihood ratio test was performed to evaluate how strong if having a germline BRCA1/2mutation increases the likelihood of having somatic HRD based on number of HRD samples in each germline group with VUS BRCA1/2 group and P/LP or VUS in other genes excluded.
 

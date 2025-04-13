@@ -3,7 +3,6 @@ import sys
 import pandas as pd
 from collections import defaultdict
 
-# adjusts for different grafli report format and naming.
 cohort_input = {
     "familial": {
         "vcf_file": "vcf_files/all_Simpson_FamilialBreast_GRCh38.germline.August2024_final.vcf",
@@ -32,7 +31,7 @@ cohort_input = {
     }
 }
 
-all_sample_id = pd.read_csv("../brca_germline_clf_tumor_hrd.v5.tsv", sep="\t")["donor_id"].values
+all_sample_id = pd.read_csv("../../brca_mutational_signatures/results/brca_germline_clf_tumor_hrd.tsv", sep="\t")["sample_id"].values
 
 cohort = sys.argv[1].lower()
 if not cohort in cohort_input:

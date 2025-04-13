@@ -23,7 +23,6 @@ def read_maf(file):
 
 
 def read_cnv(file):
-    gene_order = ["BRCA1","BRCA2","PALB2","BARD1","BRIP1","RAD51C","RAD51D","CHEK2","ATM"]
     ascat_call = dict()
     cnv = []
     with open(file,'rt') as fh:
@@ -35,7 +34,7 @@ def read_cnv(file):
 
     return "\t".join(cnv)
 
-gene_order = ["BRCA1","BRCA2","PALB2","BARD1","BRIP1","RAD51C","RAD51D","CHEK2","ATM"]
+gene_order = ["BRCA1","BRCA2","ATM","BARD1","BRIP1","CHEK2","PALB2","PTEN","RAD51C","RAD51D","TP53"]
 with open(annotation_file, 'rt') as fh:
     for line in fh:
         line = line.strip()

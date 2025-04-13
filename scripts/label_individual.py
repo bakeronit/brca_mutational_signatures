@@ -2,7 +2,7 @@ import sys, os
 from cyvcf2 import VCF
 from collections import defaultdict
 
-cristina_clf = "germline_mutation_classification.txt"
+cristina_clf = "germline_mutation_classification.final.txt"
 
 brca_mutation = defaultdict(list)
 
@@ -52,7 +52,7 @@ with open(cristina_clf,'r') as fh:
 
 
 filename = sys.argv[1]
-sample_id = os.path.basename(filename).replace('.filtered.tsv','')
+sample_id = os.path.basename(filename).replace('.final.tsv','')
 
 groups = ['A','B','C','D','E','F']
 mutation_group = {group:[] for group in groups}
@@ -69,7 +69,8 @@ with open(filename, 'rt') as fh:
         for group in groups:
             if mutation in brca_mutation[group]:
                 if group in ["A", "D"]:
-                    vcf_file = filename.replace('../3.collect_snvs/germline_snvs','vcf_files').replace('.filtered.tsv','.vcf.gz')
+                    #vcf_file = filename.replace('../3.collect_snvs/germline_snvs','vcf_files').replace('.final.tsv','.vcf.gz')
+                    vcf_file = filename.replace('germline_snvs','../4.brca_classification/vcf_files').replace('.final.tsv','.vcf.gz')
                     vcf = VCF(vcf_file)
                     ref_alt_ad = get_mutation_AD(mutation, vcf)
                     hgvs += f"[{ref_alt_ad}]"  ## for a BRCA1/2 path mutation, we want to know their AD in ref and alt, so can infer more in combine with copynumber
