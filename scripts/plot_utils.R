@@ -91,3 +91,7 @@ theme_Publication <- function(base_size=14, base_family="sans") {
     ))
   
 }
+
+magic_id_conversion <- read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.tsv") |> filter(cohort=="MAGIC") |> arrange(sample_id) |> 
+  mutate(pseudo_id = ifelse(cohort=="MAGIC",paste0("MAGIC",1:136), sample_id)) |> select(sample_id, pseudo_id) |> deframe()
+

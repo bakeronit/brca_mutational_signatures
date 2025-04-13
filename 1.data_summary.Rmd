@@ -38,24 +38,23 @@ All samples were processed with a uniform pipeline and we applied the dual calli
 ```{r, message=FALSE}
 # load grafli report
 df_none2019 <- read_csv(paste0(data_dir,"Simpson_-_FamilialBreast_SomaticReport_GRCh38_77.csv")) |> filter(!is.na(ascatAnalysis)) |> 
-  rename("sample_id"=donorPublicationID)
+  dplyr::rename("sample_id"=donorPublicationID)
 
 uuid_tsv <- read_tsv(paste0(data_dir, "uuid_case.txt"),col_names = c("uuid","sample_id"))
 df_tcga <- read_csv(paste0(data_dir, "TCGA_-_breast_cancer_SomaticReport_GRCh38.csv")) |> filter(!is.na(ascatAnalysis)) |> 
   left_join(uuid_tsv, by=c("donorSubmittedWithID"="uuid")) 
 
-df_magic <- read_csv(paste0(data_dir, "Waddell_-_Magic_WGS_StudySomaticReport.csv.139")) |> filter(!is.na(ascatAnalysis)) |> rename("sample_id"=donorSubmittedWithID, "tumour_id"=testSampleLabel) |> filter(!tumour_id %in% extra_tumours)
-
+df_magic <- read_csv(paste0(data_dir, "Waddell_-_Magic_WGS_StudySomaticReport.csv.139")) |> filter(!is.na(ascatAnalysis)) |> dplyr::rename("sample_id"=donorSubmittedWithID, "tumour_id"=testSampleLabel) |> filter(!tumour_id %in% extra_tumours)
 
 ##  A single tumour had two germline controls as they were testing different kits, remove "collectedsample:4a6e39fd-4e92-496d-a1ce-98b1a9340d8c"
 df_qimprove <- read_tsv(paste0(data_dir, "GenomiQa_-_qimprove_Somatic_Report_GRCh38_for_jia_no_recurrance.tsv")) |> 
-  filter(! controlSampleIRI=="collectedsample:4a6e39fd-4e92-496d-a1ce-98b1a9340d8c") |> add_column(studyLabel="qimprove") |> rename("sample_id"=patientLabel, "tumour_id"=testSampleLabel) |> 
+  filter(! controlSampleIRI=="collectedsample:4a6e39fd-4e92-496d-a1ce-98b1a9340d8c") |> add_column(studyLabel="qimprove") |> dplyr::rename("sample_id"=patientLabel, "tumour_id"=testSampleLabel) |> 
   filter(!tumour_id %in% extra_tumours)
 ```
 
 After removing samples with less then 20x depth in tumour sample, we only keep the primary tumour from each patient.
 
-```{r supplementary_fig1, fig.width=9, fig.height=4}
+```{r sequencing_depth, fig.width=9, fig.height=4}
 depth_df <- rbind(read_tsv(paste0(data_dir, "sequencing_depth/nones.depth.txt"), col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="familial"),
                   read_tsv(paste0(data_dir, "sequencing_depth/tcga.depth.txt"), col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="tcga"),
                   read_tsv(paste0(data_dir, "sequencing_depth/magic.depth.txt"), col_names = c("sample","t_depth","n_depth")) |> add_column(cohort="magic"),
@@ -85,7 +84,7 @@ valid_samples <- depth_df |> pull(sample_id)
 
 A figure showing the tumour purity scores, TMB in cohorts.
 
-```{r supplementary_fig2, fig.width=9.6, fig.height=4.5, warning=FALSE, message=FALSE}
+```{r supplementary_fig1ab, fig.width=9.6, fig.height=4.5, warning=FALSE, message=FALSE}
 df_all <- rbind(df_none2019 |> select(studyLabel,sample_id,ascatPurityScore,TMB_nonSyn),
       df_tcga |> select(studyLabel,sample_id, ascatPurityScore,TMB_nonSyn), 
       df_magic |> select(studyLabel,sample_id,ascatPurityScore,TMB_nonSyn),
@@ -116,14 +115,13 @@ df_all |>
  
 A figure showing the number of snvs and indels in each cohort.
 
-```{r supplementary_fig3, fig.width=9.2, fig.height=4.6, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
+```{r num_of_variants, fig.width=9.2, fig.height=4.6, message=FALSE, warning=FALSE, results='hide', cache=TRUE}
 summarise_vcfs <- function(pdir, sample) {
   snv_file <- file.path("data/GRCh38",pdir,"snvs",paste0(sample,".snv.vcf.gz"))
   indel_file <- file.path("data/GRCh38",pdir,"indels",paste0(sample,".indel.vcf.gz"))
   n_snv <- read.vcfR(snv_file) |> nrow()
   n_indel <- read.vcfR(indel_file) |> nrow()
-  df <- data.frame(snv=n_snv,indel=n_indel)
-  df
+  data.frame(snv=n_snv,indel=n_indel)
 }
 
 
@@ -149,7 +147,7 @@ df_vcf_all |> mutate(cohort=case_when(grepl("FBC",sample_id) ~ "familial",
   theme(axis.ticks.x = element_blank(), axis.text.x = element_blank()) 
 ```
 
-```{r supplementary_fig4, fig.width=9.2, fig.height=3.6, warning=FALSE}
+```{r supplementary_fig1c, fig.width=9.2, fig.height=3.6, warning=FALSE}
 sv_df <- list.files("data/GRCh38", pattern = "*.sv.tsv", full.names = TRUE, recursive = TRUE) |> 
   set_names(\(x) basename(x) |> str_remove(".sv.tsv")) |> map(\(x) read_tsv(x,col_types = list(col_character(),col_double()))) |> 
   list_rbind(names_to = "sample") |> mutate(sv_len=ifelse(is.na(sv_len), 0, sv_len)) |> 
@@ -183,10 +181,12 @@ google_sheet_supp1 <- sv_df |> group_by(sample_id) |> summarise(total_sv=n()) |>
                           studyLabel=="qimprove" ~ "Q-IMPROvE")) |> 
   select(sample_id, Study, t_depth, n_depth, ascatPurityScore, TMB_nonSyn, snv, indel, total_sv) |> 
   arrange(Study) |> 
-  rename("Sample ID" = sample_id,"SV" = total_sv, "Tumour depth" = t_depth, "Normal depth" = n_depth, "Tumour purity" = ascatPurityScore, "TMB" = TMB_nonSyn, "SNV" = snv, "Indel" = indel, "SV" = total_sv) 
+  mutate(sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id)) |> 
+  dplyr::rename("Sample ID" = sample_id,"SV" = total_sv, "Tumour depth" = t_depth, "Normal depth" = n_depth, "Tumour purity" = ascatPurityScore, "TMB" = TMB_nonSyn, "SNV" = snv, "Indel" = indel, "SV" = total_sv) 
 
-google_sheet_supp1 |> head(5) |> gt() |> as_raw_html()
-
+google_sheet_supp1 |> 
+  gt() |> as_raw_html()
+google_sheet_supp1 |> write_tsv("results/supplementary-table1.tsv")
 ```
 
 ```{r, eval=FALSE}
@@ -201,6 +201,6 @@ google_sheet_supp1 |>
     ss = gs4_get(
       config$google_sheet_id
     ),
-    sheet = "Supp-table1"
+    sheet = "Supplementary Table 1"
   )
 ```

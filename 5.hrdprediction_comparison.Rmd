@@ -41,19 +41,23 @@ hrdsum <- read_tsv("results/hrdsum_355.tsv") |> separate_wider_delim(sample,".",
   filter(!tumour_id %in% extra_tumours) |> select(-tumour_id)
 
 
-df_hrd |> filter(hr_status_combined=="Inconsistent") |> left_join(hrdsum) |> left_join(result_df)|> select(sample_id, cohort,HRDetect,CHORD, `HRD-sum`, updated_germline_classification, A, B, class_A_mutations, class_B_mutations) |> gt() |> as_raw_html()
+df_hrd |> filter(hr_status_combined=="Inconsistent") |> left_join(hrdsum) |> left_join(result_df)|> 
+  select(sample_id, cohort,HRDetect,CHORD, `HRD-sum`, updated_germline_classification, A, B, class_A_mutations, class_B_mutations) |> 
+  mutate(sample_id=ifelse(cohort=="MAGIC",magic_id_conversion[sample_id], sample_id))|> 
+  gt() |> as_raw_html()
 ```
 
 
 ```{r hrd_comparison_fig1, fig.width=9.2, fig.height=8.8}
-p1 <- df_hrd |> mutate(hr_status_combined=factor(hr_status_combined,levels=c("HRD","HRP","Inconsistent"))) |> 
+#use pseudo ID for MAGIC cohort as requested
+p1 <- df_hrd |> mutate(hr_status_combined=factor(hr_status_combined,levels=c("HRD","HRP","Inconsistent"))) |>   
   ggplot(aes(x=CHORD,y=HRDetect, color=hr_status_combined)) + 
   geom_point(size=3, alpha=.8) + scale_color_manual(values=c("#0073C2","#EFC000","grey")) + 
-  ggrepel::geom_label_repel(data=df_hrd |> filter(hr_status_combined=="Inconsistent"), aes(label=sample_id), size=3.6, color="black") + 
+  ggrepel::geom_label_repel(data=df_hrd |> mutate(sample_id=ifelse(cohort=="MAGIC",magic_id_conversion[sample_id], sample_id)) |> filter(hr_status_combined=="Inconsistent"), aes(label=sample_id), size=3.6, color="black") + 
   geom_vline(xintercept = 0.5, color="darkgrey", lty=2, linewidth=1) + geom_hline(yintercept=0.7, lty=2, linewidth=1, color="darkgrey") + 
   labs(x="CHORD",y="HRDetect", color="") + theme_Publication() + theme(panel.border = element_rect(colour = 'black'))
 p1
-#ggsave("figures/figure2d.pdf", p1, height = 8.8, width = 9.2)
+#ggsave("figures/figure2d.pdf", p1, height = 8.8, width = 9.2, dpi = 320)
 ```
 
 Notably, four out of these five samples were excluded by [germline classification](xx), and `TCGA-A7-A13D` is classified as brca_negative which is consistent with CHORD result.
@@ -156,7 +160,7 @@ pe <- plot_df |>
   theme_Publication() +
   theme(strip.text = element_text(size=10), legend.position = "bottom", legend.title = element_text(size=11), legend.text = element_text(size=11))
 pe
-#ggsave("figures/figure2e.pdf", pe, height = 3.6, width = 12.2)
+#ggsave("figures/figure2e.pdf", pe, height = 3.6, width = 12.2, dpi = 320)
 ```
 
 

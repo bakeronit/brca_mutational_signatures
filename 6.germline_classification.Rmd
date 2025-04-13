@@ -20,9 +20,9 @@ source("scripts/plot_utils.R")
 knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path = "cache/")
 ```
 
-With the hypothesis that if tumour HRD profile can inform us about the pathogenicity of a germline mutation, we need to first classifify individuals as BRCA1/2_positive or BRCA_negative groups based on their germline variants.
+With the hypothesis that if tumour HRD profile can inform us about the pathogenicity of a germline mutation, we need to first classifify individuals as BRCA1/2 positive, BRCA1/2 negative, BRCA1/2 VUS or exclude groups based on their germline variants.
 
-To stratify individuals, we first collect all germline mutations of each individual in 10 target genes including *BRCA1, BRCA2, PALB2, BARD1, BRIP1, RAD51C, RAD51D, CHEK2*, and *ATM*. The germline variant calls were obtain from our best-practice pipeline on HPC and each variant was annotated using `nanno` tool (better VEP from QIMR).
+To stratify individuals, we first collect all germline mutations of each individual in 11 target genes including *BRCA1, BRCA2, ATM, BARD1 ,BRIP1, CHEK2, PALB2, PTEN, RAD51C, RAD51D*, and *TP53*. The germline variant calls were obtain from our best-practice pipeline on HPC and each variant was annotated using `nanno` tool (qannotate).
 
 A set of unique SNVs and indels from all samples were collected for curation.
 
@@ -40,21 +40,21 @@ After curation, each variant was labelled as A, B, C, D, E, F class as below:
 variant_class <- LETTERS[1:6]
 criteria <- c(
   "Pathogenic or hot VUS in HR genes other than BRCA1/2, and also ATM, CHEK2",
-  "(cold) VUS in HR genes other than BRCA1/2, and also ATM, CHEK2",
-  "Benign/Likely benign variants in HR genes other than BRCA1/2, and also ATM, CHEK2",
+  "(cold) VUS in HR genes other than BRCA1/2, and also ATM, CHEK2, PTEN, and TP53",
+  "Benign/Likely benign variants in HR genes other than BRCA1/2, and also ATM, CHEK2, PTEN, and TP53",
   "Pathogenic variants in BRCA1 or BRCA2",
   "VUS in BRCA1 or BRCA2",
   "Benign/Likely benign variants in BRCA1 and/or BRCA2"
 )
 
-num_of_variant <- read_tsv("../4.brca_classification/germline_mutation_classification.txt") |> count(Class_updated) |> pull(n)
+num_of_variant <- read_tsv(paste0(data_dir, "germline_mutation_classification.txt")) |> count(Class_updated) |> pull(n)
 
 tibble("Variant class" = variant_class, "Criteria" = criteria, "N"=num_of_variant) |> 
-  gt() |> tab_footnote(footnote=md("*Genes included: BRCA1, BRCA2, PALB2, BARD1 ,BRIP1, RAD51C, RAD51D, CHEK2, ATM*")) |> as_raw_html()
+  gt() |> tab_footnote(footnote=md("*Genes included: BRCA1, BRCA2, ATM, BARD1 ,BRIP1, CHEK2, PALB2, PTEN, RAD51C, RAD51D, TP53*")) |> as_raw_html()
 
 ```
 
-Next, we went through each sample, and labelled them as BRCA1/2_positive or BRCA1/2_negative using [label_individual.py](scripts/label_individual.py). Furthermore, to avoid the noise from pathogenic variants of other genes, we excluded samples if P/LP variants of other genes (class A) or VUS of other genes(class B) were present in one. In addition, we separated individuals with VUS_BRCA (class E) variants but not others as the Additional group for further investigation. 
+Next, we went through each sample, and labelled them as BRCA1/2_positive or BRCA1/2_negative, etc using [label_individual.py](scripts/label_individual.py). Furthermore, to avoid the noise from pathogenic variants of other genes, we excluded samples if P/LP variants of other genes (class A) or VUS of other genes(class B) were present in one. In addition, we separated individuals with VUS_BRCA (class E) variants but not others as the Additional group for further investigation. 
 
 ```bash
 cut -f1,2,3,4,8,100 BRCA.germline_snvs.annotation_cf.final.txt > germline_mutation_classification.txt. # get chr, position, ref, alt, gene_name, (variant_class) columns in xlsx from CF.
@@ -63,7 +63,7 @@ for file in *.filtered.tsv; do
 done
 ```
 
-We merged with this classification with thier tumour HRD profiles and generate a big table ()[]: 
+We merged with this classification with thier tumour HRD profiles and generate a big table [Supplementary Table 4](https://docs.google.com/spreadsheets/d/1rgva1pfGp3ScCln8a0WScAAEoazS1-dUu5NfeF_1AD0/edit?gid=1859159045#gid=1859159045): 
 
 ```{r}
 germline_df <- read_tsv(paste0(data_dir, "sample_classification.txt"),
@@ -127,14 +127,14 @@ df <- df |> mutate(hr_status_combined=case_when(Probability>=0.7 & hr_status=="H
 
 
 tree_df <- df |> select(A, B, C, D, C, E, F, sample_id, , hr_status_combined, germline_classification) |>  
-  filter(!hr_status_combined=="Inconsistent") |> 
-  mutate(has_A=ifelse(A>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_B=ifelse(B>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_C=ifelse(C>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_D=ifelse(D>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_E=ifelse(E>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_F=ifelse(F>0, "yes", "no") |> factor(levels=c("no","yes"))) |> 
-  select(has_A, has_B, has_C, has_D, has_C, has_E, has_F, germline_classification, sample_id, hr_status_combined) |> 
+  #filter(!hr_status_combined=="Inconsistent") |> 
+  mutate(`Carries A`=ifelse(A>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries B`=ifelse(B>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries C`=ifelse(C>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries D`=ifelse(D>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries E`=ifelse(E>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries F`=ifelse(F>0, "yes", "no") |> factor(levels=c("no","yes"))) |> 
+  select(`Carries A`, `Carries B`, `Carries C`, `Carries D`, `Carries C`, `Carries E`, `Carries F`, germline_classification, sample_id, hr_status_combined) |> 
   as.data.frame()
 
 sp_a <- partysplit(1L, breaks = 0)
@@ -176,7 +176,7 @@ tree <- party(pn,
 p_tmp <- tree_df |> 
   ggplot(aes(x=hr_status_combined, fill=hr_status_combined)) + 
   geom_bar() + 
-  scale_fill_manual(values=c("#0073C2","#EFC000")) +
+  scale_fill_manual(values=c("#0073C2","#EFC000","grey")) +
   labs(fill="") + theme(legend.position = "bottom")
 p_legend <- ggpubr::get_legend(p_tmp)
 
@@ -190,7 +190,7 @@ p1 <- ggparty(tree) +
                                theme(axis.text.x = element_blank(), 
                                      axis.ticks.x = element_blank(), 
                                      panel.grid = element_blank()),
-                               scale_fill_manual(values=c("#0073C2","#EFC000")),
+                               scale_fill_manual(values=c("#0073C2","#EFC000","grey")),
                                ylab("Count"),
                                xlab(""))) +
   geom_node_label(aes(label = paste0(info, ", N = ", nodesize)),
@@ -208,10 +208,13 @@ Furthermore, depending on whether the mutation is present in BRCA1 or BRCA2, we 
 
 **The number of samples in each detailed category**
 
+*This plot excluding the 5 samples that were predicted inconsistently by CHORD and HRDetect.*
+
 ```{r, snv_germline_classification_combined,  fig.width=9, fig.height=4.8}
 group_labeller <- c("additional_brca1"="BRCA1 VUS","additional_brca2"="BRCA2 VUS", "exclude"="Exclude","negative_brca1/2"="BRCA1/2 negative", "positive_brca1"="BRCA1 positive", "positive_brca2"="BRCA2 positive")
 
-df |> filter(hr_status_combined!="Inconsistent") |> 
+df |> 
+  filter(hr_status_combined!="Inconsistent") |> 
   ggplot(aes(x=hr_status_combined, fill=hr_status_combined)) +
   geom_bar() + 
   geom_text(stat='count', aes(x=hr_status_combined,label=..count..), vjust=-.2, size=4) +
@@ -224,12 +227,12 @@ df |> filter(hr_status_combined!="Inconsistent") |>
 
 
 
-We also examed structrual variations (SVs) in samples using `DELLY`. The SVs in the 10 genes we listed before were extracted for curation, and those potential pathogenic or hot VUS in other genes excpete BRCA1/2 (class A), pathogenic variants in BRCA1/2 (class D) and VUS in BRCA1/2 (class E) were visually checked in IGV. 
+We also examed structrual variations (SVs) in samples using `DELLY`. The SVs in the 11genes we listed before were extracted for curation, and those potential pathogenic or hot VUS in other genes excpete BRCA1/2 (class A), pathogenic variants in BRCA1/2 (class D) and VUS in BRCA1/2 (class E) were visually checked in IGV. 
 
-Eventually, this results in  7 SVs:
+Eventually, this results in 8 SVs:
 
 ```{r}
-read_tsv("../4.brca_classification/sv/real_sv.txt", col_names = c("chrom1","pos1","chrom2","pos2", "ID", "SV_type", "SV_len", "gene1", "gene2", "frequency","cohort","class")) |> 
+read_tsv(paste0(data_dir, "sv/real_sv.txt"), col_names = c("chrom1","pos1","chrom2","pos2", "ID", "SV_type", "SV_len", "gene1", "gene2", "frequency","cohort","class")) |> 
   gt() |> as_raw_html()
 ```
 
@@ -242,8 +245,8 @@ python extract_ind_with_pathSV.py $cohort | datamash -s -g1 collapse 2 > ${cohor
 After integrating SV results in individuals classification, 6 samples were affected by these real SVs, we then updated the germline classfication for these individuals 
 
 ```{r}
-sv_df <- read_tsv("../4.brca_classification/sv/sample_pathSV.real.tsv", col_names = c("sample_id","pathSV"))
-sv_df |> gt() |> as_raw_html()
+sv_df <- read_tsv(paste0(data_dir,"sv/sample_pathSV.real.tsv"), col_names = c("sample_id","pathSV"))
+sv_df |> mutate(sample_id=ifelse(startsWith(sample_id,"MAGIC"),magic_id_conversion[sample_id],sample_id)) |> gt() |> as_raw_html()
 df2 <- df |> left_join(sv_df) |> 
   mutate(SV_A = map_dbl(str_split(pathSV, ","), ~ sum(str_detect(., "^A"))),
          SV_D = map_dbl(str_split(pathSV, ","), ~ sum(str_detect(., "^D"))),
@@ -263,27 +266,27 @@ tmp_df <- df2 |> filter(sample_id %in% affected_samples) |> select(cohort,sample
     TRUE~ germline_classification
   )) 
 
-tmp_df |> select(-pathSV) |>  gt() |> as_raw_html()
+tmp_df |> select(-pathSV) |> mutate(sample_id=ifelse(cohort=="MAGIC",magic_id_conversion[sample_id],sample_id)) |>  gt() |> as_raw_html()
 
 
 result_df <- df2 |> left_join(tmp_df |> select(sample_id, updated_germline_classification)) |> 
   mutate(updated_germline_classification=ifelse(is.na(updated_germline_classification), germline_classification, updated_germline_classification)) 
 
-result_df |> write_tsv("results/brca_germline_clf_tumor_hrd.add_sv.tsv")
+#result_df |> write_tsv("results/brca_germline_clf_tumor_hrd.add_sv.tsv")
 ```
 
 ### Partitioin tree after integrating SVs.
 
 ```{r Figure2.1, fig.height=8, fig.width=10.6, warning=FALSE}
 tree_df2 <- df2 |> select(A, B, C, D, C, E, F, sample_id, , hr_status_combined) |>  
-  filter(!hr_status_combined=="Inconsistent") |> 
-  mutate(has_A=ifelse(A>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_B=ifelse(B>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_C=ifelse(C>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_D=ifelse(D>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_E=ifelse(E>0, "yes", "no") |> factor(levels=c("no","yes")),
-         has_F=ifelse(F>0, "yes", "no") |> factor(levels=c("no","yes"))) |> 
-  select(has_A, has_B, has_C, has_D, has_C, has_E, has_F, sample_id, hr_status_combined) |> 
+  #filter(!hr_status_combined=="Inconsistent") |> 
+  mutate(`Carries A`=ifelse(A>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries B`=ifelse(B>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries C`=ifelse(C>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries D`=ifelse(D>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries E`=ifelse(E>0, "yes", "no") |> factor(levels=c("no","yes")),
+         `Carries F`=ifelse(F>0, "yes", "no") |> factor(levels=c("no","yes"))) |> 
+  select(`Carries A`, `Carries B`, `Carries C`, `Carries D`, `Carries C`, `Carries E`, `Carries F`, sample_id, hr_status_combined) |> 
   as.data.frame()
 
 
@@ -307,7 +310,7 @@ p2 <- ggparty(tree2) +
                                theme(axis.text.x = element_blank(), 
                                      axis.ticks.x = element_blank(), 
                                      panel.grid = element_blank()),
-                               scale_fill_manual(values=c("#0073C2","#EFC000")),
+                               scale_fill_manual(values=c("#0073C2","#EFC000","grey")),
                                ylab("Count"),
                                xlab(""))) +
   geom_node_label(aes(label = paste0(info, ", N = ", nodesize)),
@@ -321,17 +324,22 @@ p2 <- ggparty(tree2) +
 p2/p_legend + plot_spacer() + plot_layout(heights = c(11,-1.5,1))
 ```
 
-Lastly, we add somatic mutation information as well using [add_somatic_mutations.py](scripts/add_somatic_mutations.py). The results include any somatic mutations in the 10 genes and the copy number of each gene.
+Lastly, we add somatic mutation information as well using [add_somatic_mutations.py](scripts/add_somatic_mutations.py). The results include any somatic mutations in the 11 genes and the copy number status of each gene.
 
 ```bash
 python add_somatic_mutations.py brca_germline_clf_tumor_hrd.add_sv.tsv > brca_germline_clf_tumor_hrd.add_sv.add_somatic.tsv
 ```
 
-```{r}
+```{r, eval=FALSE}
 read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.add_somatic.tsv") |> head(5) |> 
   gt() |> 
   sub_missing() |> 
   as_raw_html()
+
+read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.add_somatic.tsv") |> 
+  mutate(sample_id=ifelse(cohort=="MAGIC",magic_id_conversion[sample_id],sample_id)) |> 
+  select(-tumour_id) |> 
+  write_tsv("results/supplementary-table4.tsv")
 ```
 
 
@@ -339,7 +347,7 @@ Previous tree plot didn't include individuals have inconsistent HRD prediction f
 If just ignore the tumour HRD type, all 350 individuals were classified as different groups by either carries germline variant in category A, E, B or D.
 
 
-```{r,fig.height=8, fig.width=15.6, warning=FALSE }
+```{r supplementary_fig2,fig.height=8, fig.width=15.6, warning=FALSE, eval=FALSE}
 tree_df3 <- df2 |> select(A, B, D, C, E, sample_id) |>  
   mutate(Carries_A=ifelse(A>0, "yes", "no") |> factor(levels=c("no","yes")),
          Carries_B=ifelse(B>0, "yes", "no") |> factor(levels=c("no","yes")),
@@ -433,6 +441,7 @@ p_germline_classification_by_cohort <- result_df |>
 
 
 p_allu / p_germline_classification_by_cohort + plot_layout(heights = c(0.88,0.12))
+#ggsave("figures/Figure1b.pdf", height = 9, width = 8.6, dpi = 320)
 ```
 
 **Figure 1.The alluvial diagram illustrates the classification of 350 individuals into five colour-coded groups (dark blue: positive for BRCA1; red: positive for BRCA2; pink: Exclude; teal: VUS in BRCA1 or BRCA2; grey: negative for P/LP or VUS in BRCA1 or BRCA2). Individuals were classified into each group based on the four criteria displayed along the y-axis. The bar plot displays the individuals classified into five groups within each patient cohort (Familial Breast, TCGA-BRCA, MAGIC and Q-IMPROVE).**

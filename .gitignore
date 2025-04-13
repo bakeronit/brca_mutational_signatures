@@ -9,3 +9,7 @@ cache/**
 *.Rproj
 config.yaml
 .secrets
+## ignore all raw files that has ID of MAGIC samples only keep those table with de-identified ID.
+results/*
+!results/supplementary-table1.tsv
+!results/supplementary-table4.tsv

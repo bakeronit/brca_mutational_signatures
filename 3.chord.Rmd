@@ -10,6 +10,7 @@ library(CHORD)
 library(BSgenome.Hsapiens.UCSC.hg38)
 library(RColorBrewer)
 library(here)
+library(gt)
 library(waffle)
 library(ggmosaic)
 library(colorspace)
@@ -201,7 +202,7 @@ pb
 ```
 
 
-29 had been excluded due to carrying P/LP or suspicious VUS in non-BRCA1/2 genes, out of these 29 individuals, 4 of them are HRD (BRCA1), 4 are HRD (BRCA2) and 2 of them are HRD (Undetermined). 
+31 individuals had been excluded due to carrying P/LP in non-BRCA1/2 genes, out of these 29 individuals, 5 of them are HRD (BRCA1), 4 are HRD (BRCA2) and 2 of them are HRD (Undetermined).  9 BRCA1/2 VUS cases were identified as HRD, 7 in BRCA1 type and 2 in BRCA2 type.
 
 ```{r figure 3c, fig.height=5.2, fig.width=9}
 group_color_mapping2 <- c("additional"="#0099B4", "exclude_plp" = "#E5735A","exclude" = "#FDAF91", "negative_brca1/2"="#ADB6B6", "positive_brca1" = "#00468B", "positive_brca2"="#ED0000")
@@ -210,21 +211,38 @@ names(group_labeller2) <- c("additional","exclude_plp","exclude","negative_brca1
 hrdtype_labeller <- c(stringr::str_wrap("HRD (BRCA1)",8),stringr::str_wrap("HRD (BRCA2)",8),stringr::str_wrap("HRD (Undetermined)",10), "HRP")
 names(hrdtype_labeller) <- c("BRCA1_type","BRCA2_type","cannot_be_determined","none")
 
-exclude_plp_df <- result_df |> select(cohort, sample_id, hrd_type, updated_germline_classification, A, class_A_mutations, pathSV) |> filter(A>0) |> 
+exclude_plp_df <- result_df |> select(cohort, sample_id, hrd_type, updated_germline_classification, A, class_A_mutations, pathSV) |> filter(A>0,hrd_type!="none") |> 
   mutate(variant=ifelse(is.na(class_A_mutations), 
                         paste0(str_split_i(pathSV,"_",i=5)," (DEL)"),
                         str_replace(class_A_mutations,"^\\s*(c\\.[^\\[]+)\\[.*?\\]\\(([^)]+)\\).*$","\\2 (\\1)"))
-         ) |> select(hrd_type, variant) |> filter(hrd_type!="none") |>  group_by(hrd_type) |> mutate(row=row_number()) |> ungroup() |> 
+         ) |> select(hrd_type, variant) |>  group_by(hrd_type) |> mutate(row=row_number()) |> ungroup() |> 
   mutate(row=ifelse(hrd_type=="BRCA1_type", row+1, row), col=case_when(hrd_type=="BRCA1_type"~11, hrd_type=="BRCA2_type"~8, TRUE~2))
+
+transform_variant <- function(variant) {
+  v <- str_split(variant, ";", simplify = TRUE)
+  v |> map_chr(\(x) str_replace(x,
+    pattern = "c\\.(.*)\\(([A-Z0-9]+)\\)",
+    replacement = "\\2 (c.\\1)"
+  ) ) |> paste(collapse = "; ")
+}
+
+additional_df <- 
+  result_df |> select(cohort, sample_id, hrd_type, updated_germline_classification, E, class_E_mutations, pathSV) |> filter(grepl("additional", updated_germline_classification), hrd_type!="none") |> 
+  mutate(variant=class_E_mutations |> map_chr(transform_variant)) |> 
+  select(hrd_type, variant) |> mutate(text_length=str_length(variant)) |> 
+  group_by(hrd_type) |> arrange(desc(text_length)) |> 
+  mutate(row=row_number()) |> ungroup() |> 
+  mutate(col=case_when(row==7~32.6, hrd_type=="BRCA1_type"~25.5, hrd_type=="BRCA2_type"~17), row=ifelse(row==7, 6, row), row=ifelse(hrd_type=="BRCA2_type", row+2, row))
 
 result_df |> select(cohort, sample_id, hrd_type, updated_germline_classification, A, class_A_mutations, class_E_mutations,E,pathSV) |> filter(A>0 | E>0) |> 
   filter(hrd_type!="none", startsWith(updated_germline_classification,"additional")) |> 
   mutate(variant=str_replace_all(class_E_mutations, "c\\.(.*)\\((BRCA\\d+)\\)", "\\2 (\\1)")) |> 
-  select(hrd_type, variant)
+  select(hrd_type, variant) |> gt() |> as_raw_html()
   
 
 
 exclude_plp_text_color <- darken("#E5735A", amount = 0.3) ## kind of match with the box color but darker:)
+additional_text_color <- darken("#0099B4", amount=0.3)
 pc<-result_df |> select(cohort,sample_id, hrd_type, updated_germline_classification, A, B) |> 
   mutate(germline_classification=ifelse(startsWith(updated_germline_classification,"additional"),"additional",updated_germline_classification)) |> 
   mutate(detail_exclude=ifelse(A>0, "exclude_plp", germline_classification)) |> 
@@ -233,15 +251,16 @@ pc<-result_df |> select(cohort,sample_id, hrd_type, updated_germline_classificat
   ggplot() + 
   geom_waffle(aes(fill=detail_exclude, values=n),color = "white", size = 1.125, n_rows = 6) + 
   geom_text(data=exclude_plp_df, aes(label=variant, x=col,y=row), hjust = 0,color=exclude_plp_text_color, fontface="bold", size=rel(2.5)) +
+  geom_text(data=additional_df, aes(label=variant, x=col,y=row), hjust = 0,color=additional_text_color, fontface="bold", size=rel(2.5)) +
   scale_fill_manual(values=group_color_mapping2, labels=group_labeller2) + scale_x_discrete(expand=c(0.01,0.1)) +
   facet_wrap(~hrd_type, ncol = 1,  strip.position = "left", labeller = labeller(hrd_type=hrdtype_labeller)) + theme_Publication() + labs(x="", y="HR status ",fill="Germline classification") +
   theme( legend.position = "inside", 
-        legend.position.inside  = c(0.88,0.66), 
+        legend.position.inside  = c(0.88,0.46), 
          legend.direction = "vertical",
             legend.box = "vetical",
          axis.line.y= element_blank(), axis.ticks = element_blank() ,axis.line.x = element_blank(), axis.text = element_blank(), strip.text = element_text(size=8),legend.text = element_text(size=8), legend.title = element_text(size=9))
 pc
-#ggsave("figures/figure3c.pdf", pc, height = 5.2, width = 9)
+#ggsave("figures/figure3c.pdf", pc, height = 5.2, width = 9, dpi = 320)
 ```
 
 
