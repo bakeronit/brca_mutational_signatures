@@ -289,5 +289,5 @@ df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ifelse(to
                          as.integer(size)>10 & as.integer(size) <=20 ~ "T1c", 
                          as.integer(size)>20 & as.integer(size) <=50 ~ "T2",
                          as.integer(size)>50 ~ "T3")) |> 
-  mutate(stage=stage_clean[stage], morphology=morph_clean[morph]) |> gt() |> as_raw_html()
+  mutate(stage=stage_clean[stage], morphology=morph_clean[morph]) |> head(n=10) |>  gt() |> as_raw_html()
 ```
