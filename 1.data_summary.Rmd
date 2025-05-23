@@ -218,8 +218,6 @@ familial$Grade <- familial$Grade |>  str_replace("NA","n/a")
 
 familial <- familial |> rename("age"=`Age at diagnosis (years)`, "sample_id"=Donor, "gender"=Gender, "morph"=`Morphology coding`, "stage"=Grade, "size"=`Tumour Size (mm)`) |> mutate(age=as.integer(age)) |> 
   select(sample_id, age, gender, morph, size, stage, ER, PR, HER2)
-
-familial |> gt()
 ```
 
 ```{r}
@@ -232,8 +230,6 @@ magic$Grade <- magic$Grade |>  str_replace("NA","n/a")
 
 magic <- magic |> rename("age"=`Age at diagnosis`, "sample_id"=`MAGIC ID`, "gender"=Gender, "morph"=Morphology, "stage"=Grade, "size"=`Tumour size(mm)`) |> mutate(age=as.integer(age)) |> 
   select(sample_id, age, gender, morph, size, stage, ER, PR, HER2)
-
-magic |> gt()
 ```
 
 
@@ -248,17 +244,43 @@ tcga$PR <- tcga$PR |>  str_replace("\\[Not Evaluated\\]","n/a")
 tcga$stage <- tcga$stage |>  str_replace("\\[Not Evaluated\\]","n/a")
 
 tcga <- tcga |> filter(sample_id %in% valid_samples)
-
-tcga |> gt()
 ```
 
 Different studies have their own framework to record tumour histopath information, need to consolidate them.
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, echo=TRUE}
 df <- rbind(familial, magic, tcga) |> replace_na(list(stage="n/a", size="n/a", gender="n/a", morph="n/a",age="n/a",ER="n/a",PR="n/a", HER2="n/a"))
 stage_tags <-  df$stage |> unique() 
-tag_mapping <- c("III", "II","n/a", "I", "III", "II", "I", "II/III", "II","III", "I","II", "I", "III","III", "X")
-names(tag_mapping) <- stage_tags
+stage_clean<- c("III", "II","n/a", "I", "III", "II", "I", "II/III", "II","III", "I","II", "I", "III","III", "X")
+names(stage_clean) <- stage_tags
+
+morph_tags <- df$morph |> unique()
+morph_clean <-c("Invasive Carcinoma of No Special Type",
+                      "Metaplastic Carcinoma",
+                      "Medullary Carcinoma",
+                      "Ductal Carcinoma in Situ (DCIS)",
+                      "Invasive Lobular Carcinoma (ILC)",
+                      "Medullary Carcinoma",
+                      "Mucinous Carcinoma",
+                      "High Grade DCIS", 
+                      "Invasive Ductal Carcinoma (IDC)", 
+                      "Lobular Carcinoma",
+                      "Mucinous Carcinoma",
+                      "HGDCIS with microinvasion",
+                      "Mixed IDC and Lobular Carcinoma",
+                      "Other",
+                      "Mixed IDC and Lobular Carcinoma",
+                      "Invasive Ductal Carcinoma, mixed",
+                      "Metaplastic Carcinoma",
+                      "Mucinous Carcinoma",
+                      "Mucinous Carcinoma",
+                      "Apocrine Carcinoma",
+                      "Invasive Ductal Carcinoma, mixed",
+                      "Invasive Lobular Carcinoma",
+                      "Metaplastic Carcinoma",
+                      "Mixed Ductal and Lobular Carcinoma",
+                      "Medullary Carcinoma")
+names(morph_clean) <- morph_tags
 
 df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ifelse(toupper(gender) %in% c("FEMALE","F"), "Female", "n/a"))) |> 
   mutate(tcode=case_when(startsWith(size,"T") ~ size, 
@@ -267,7 +289,5 @@ df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ifelse(to
                          as.integer(size)>10 & as.integer(size) <=20 ~ "T1c", 
                          as.integer(size)>20 & as.integer(size) <=50 ~ "T2",
                          as.integer(size)>50 ~ "T3")) |> 
-  mutate(stage=tag_mapping[stage]) |> gt()
-
-
+  mutate(stage=stage_clean[stage], morphology=morph_clean[morph]) |> gt() |> as_raw_html()
 ```
