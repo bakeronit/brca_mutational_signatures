@@ -1,0 +1,38 @@
+---
+title: "R Session Info"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(here)
+library(yaml)
+library(tidyverse)
+library(data.table)
+library(vcfR)
+library(gt)
+library(RColorBrewer)
+library(googlesheets4)
+library(signature.tools.lib)
+library(ggh4x)
+library(CHORD)
+library(BSgenome.Hsapiens.UCSC.hg38)
+library(waffle)
+library(ggmosaic)
+library(colorspace)
+library(patchwork)
+library(ggparty)
+library(ggalluvial)
+library(ggrepel)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+All analyses are implemented in **R (≥4.4.1)** with a R-studio docker container available [here](). Alternatively, you can reproduce the R environment with the [renv.lock](renv.lock) file:
+
+```{r, eval=FALSE, echo=TRUE}
+install.packages("renv")
+renv::restore()
+```
+
+```{r, echo=FALSE}
+sessionInfo()
+```

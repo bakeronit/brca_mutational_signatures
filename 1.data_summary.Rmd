@@ -6,6 +6,7 @@ output: github_document
 ```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
 library(here)
 library(yaml)
+library(readxl)
 library(tidyverse)
 library(data.table)
 library(vcfR)
@@ -26,7 +27,7 @@ In this analysis, we included whole-genome sequencing (WGS) data of pairs of pri
 
 - [TCGA-BRCA](https://portal.gdc.cancer.gov/projects/TCGA-BRCA) (N=96)
 
-- [MAGIC](https://pubmed.ncbi.nlm.nih.gov/37005005/) (N=136) 
+- [MAGIC](https://pubmed.ncbi.nlm.nih.gov/37005005/) (N=136)
 
 - [Q-IMPROvE](https://pubmed.ncbi.nlm.nih.gov/36958289/) (N=41)
 
@@ -203,4 +204,70 @@ google_sheet_supp1 |>
     ),
     sheet = "Supplementary Table 1"
   )
+```
+
+## The tumour pathology information
+
+```{r}
+familial <- read_excel("data/Supplementary_Table1.xlsx",skip = 1, col_names = TRUE) 
+
+familial$HER2 <- familial$HER2 |>  str_replace("NA","n/a")
+familial$ER <- familial$ER |>  str_replace("NA","n/a")
+familial$PR <- familial$PR |>  str_replace("NA","n/a")
+familial$Grade <- familial$Grade |>  str_replace("NA","n/a")
+
+familial <- familial |> rename("age"=`Age at diagnosis (years)`, "sample_id"=Donor, "gender"=Gender, "morph"=`Morphology coding`, "stage"=Grade, "size"=`Tumour Size (mm)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, size, stage, ER, PR, HER2)
+
+familial |> gt()
+```
+
+```{r}
+magic <- read_excel("data/Copy of histopath_info_MAGIC_samples_for_Cristina_etal_LD 150525.xlsx",col_names = TRUE)
+
+magic$HER2 <- magic$HER2 |>  str_replace("NA","n/a") |> str_replace("pos","Positive") |> str_replace("neg","Negative")
+magic$ER <- magic$ER |>  str_replace("NA","n/a") |> str_replace("pos","Positive") |> str_replace("neg","Negative")
+magic$PR <- magic$PR |>  str_replace("NA","n/a") |> str_replace("pos","Positive") |> str_replace("neg","Negative")
+magic$Grade <- magic$Grade |>  str_replace("NA","n/a") 
+
+magic <- magic |> rename("age"=`Age at diagnosis`, "sample_id"=`MAGIC ID`, "gender"=Gender, "morph"=Morphology, "stage"=Grade, "size"=`Tumour size(mm)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, size, stage, ER, PR, HER2)
+
+magic |> gt()
+```
+
+
+```{r}
+tcga <- read_tsv("data/TCGA-BRCA_116.txt") |> select(bcr_patient_barcode, gender,age_at_diagnosis,er_status_by_ihc, pr_status_by_ihc,her2_status_by_ihc,icd_o_3_histology, ajcc_pathologic_tumor_stage, ajcc_tumor_pathologic_pt) %>% 
+  rename("sample_id"=bcr_patient_barcode, "age"=age_at_diagnosis,"ER"=er_status_by_ihc, "PR"= pr_status_by_ihc, "HER2"=her2_status_by_ihc,"morph"=icd_o_3_histology,"stage"= ajcc_pathologic_tumor_stage, "size"=ajcc_tumor_pathologic_pt) |> 
+  select(sample_id, age, gender, morph, size, stage, ER, PR, HER2)
+
+tcga$HER2 <- tcga$HER2 |>  str_replace("\\[Not Evaluated\\]","n/a")
+tcga$ER <- tcga$ER |>  str_replace("\\[Not Evaluated\\]","n/a")
+tcga$PR <- tcga$PR |>  str_replace("\\[Not Evaluated\\]","n/a")
+tcga$stage <- tcga$stage |>  str_replace("\\[Not Evaluated\\]","n/a")
+
+tcga <- tcga |> filter(sample_id %in% valid_samples)
+
+tcga |> gt()
+```
+
+Different studies have their own framework to record tumour histopath information, need to consolidate them.
+
+```{r, warning=FALSE}
+df <- rbind(familial, magic, tcga) |> replace_na(list(stage="n/a", size="n/a", gender="n/a", morph="n/a",age="n/a",ER="n/a",PR="n/a", HER2="n/a"))
+stage_tags <-  df$stage |> unique() 
+tag_mapping <- c("III", "II","n/a", "I", "III", "II", "I", "II/III", "II","III", "I","II", "I", "III","III", "X")
+names(tag_mapping) <- stage_tags
+
+df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ifelse(toupper(gender) %in% c("FEMALE","F"), "Female", "n/a"))) |> 
+  mutate(tcode=case_when(startsWith(size,"T") ~ size, 
+                         as.integer(size)>1 & as.integer(size)<=5 ~ "T1a", 
+                         as.integer(size)>5 & as.integer(size)<=10 ~ "T1b", 
+                         as.integer(size)>10 & as.integer(size) <=20 ~ "T1c", 
+                         as.integer(size)>20 & as.integer(size) <=50 ~ "T2",
+                         as.integer(size)>50 ~ "T3")) |> 
+  mutate(stage=tag_mapping[stage]) |> gt()
+
+
 ```
