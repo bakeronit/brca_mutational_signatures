@@ -317,14 +317,14 @@ morphology_map <- list(
 
 df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ifelse(toupper(gender) %in% c("FEMALE","F"), "Female", "n/a"))) |> 
   mutate(tumor_size_category=case_when(startsWith(tumor_size,"T") ~ tumor_size, 
-                         as.numeric(tumor_size)>1 & as.numeric(tumor_size)<=5 ~ "T1a", 
-                         as.numeric(tumor_size)>5 & as.numeric(tumor_size)<=10 ~ "T1b", 
-                         as.numeric(tumor_size)>10 & as.numeric(tumor_size) <=20 ~ "T1c", 
-                         as.numeric(tumor_size)>20 & as.numeric(tumor_size) <=50 ~ "T2",
-                         as.numeric(tumor_size)>50 ~ "T3",
-                         TRUE ~ "n/a"),
-         stage_clean=stage_map[stage], 
-         morphology_clean=morphology_map[morph],
+                                       as.numeric(tumor_size)>1 & as.numeric(tumor_size)<=5 ~ "T1a", 
+                                       as.numeric(tumor_size)>5 & as.numeric(tumor_size)<=10 ~ "T1b", 
+                                       as.numeric(tumor_size)>10 & as.numeric(tumor_size) <=20 ~ "T1c", 
+                                       as.numeric(tumor_size)>20 & as.numeric(tumor_size) <=50 ~ "T2",
+                                       as.numeric(tumor_size)>50 ~ "T3",
+                                       TRUE ~ "n/a"),
+         stage_clean=stage_map[stage] |> unlist(), 
+         morphology_clean=morphology_map[morph] |> unlist(),
          sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id),
          morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & stage=="III", "High_Grade_DCIS", morphology_clean))|>  head(10) |> gt() |> as_raw_html()
 ```
