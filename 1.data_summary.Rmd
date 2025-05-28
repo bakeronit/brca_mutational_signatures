@@ -187,7 +187,7 @@ google_sheet_supp1 <- sv_df |> group_by(sample_id) |> summarise(total_sv=n()) |>
 
 google_sheet_supp1 |> 
   gt() |> as_raw_html()
-google_sheet_supp1 |> write_tsv("results/supplementary-table1.tsv")
+#google_sheet_supp1 |> write_tsv("results/supplementary-table1.tsv")
 ```
 
 ```{r, eval=FALSE}
@@ -216,8 +216,8 @@ familial$ER <- familial$ER |>  str_replace("NA","n/a")
 familial$PR <- familial$PR |>  str_replace("NA","n/a")
 familial$Grade <- familial$Grade |>  str_replace("NA","n/a")
 
-familial <- familial |> rename("age"=`Age at diagnosis (years)`, "sample_id"=Donor, "gender"=Gender, "morph"=`Morphology coding`, "stage"=Grade, "size"=`Tumour Size (mm)`) |> mutate(age=as.integer(age)) |> 
-  select(sample_id, age, gender, morph, size, stage, ER, PR, HER2)
+familial <- familial |> rename("age"=`Age at diagnosis (years)`, "sample_id"=Donor, "gender"=Gender, "morph"=`Morphology coding`, "stage"=Grade, "tumor_size"=`Tumour Size (mm)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, tumor_size, stage, ER, PR, HER2)
 ```
 
 ```{r}
@@ -228,15 +228,15 @@ magic$ER <- magic$ER |>  str_replace("NA","n/a") |> str_replace("pos","Positive"
 magic$PR <- magic$PR |>  str_replace("NA","n/a") |> str_replace("pos","Positive") |> str_replace("neg","Negative")
 magic$Grade <- magic$Grade |>  str_replace("NA","n/a") 
 
-magic <- magic |> rename("age"=`Age at diagnosis`, "sample_id"=`MAGIC ID`, "gender"=Gender, "morph"=Morphology, "stage"=Grade, "size"=`Tumour size(mm)`) |> mutate(age=as.integer(age)) |> 
-  select(sample_id, age, gender, morph, size, stage, ER, PR, HER2)
+magic <- magic |> rename("age"=`Age at diagnosis`, "sample_id"=`MAGIC ID`, "gender"=Gender, "morph"=Morphology, "stage"=Grade, "tumor_size"=`Tumour size(mm)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, tumor_size, stage, ER, PR, HER2)
 ```
 
 
 ```{r}
 tcga <- read_tsv("data/TCGA-BRCA_116.txt") |> select(bcr_patient_barcode, gender,age_at_diagnosis,er_status_by_ihc, pr_status_by_ihc,her2_status_by_ihc,icd_o_3_histology, ajcc_pathologic_tumor_stage, ajcc_tumor_pathologic_pt) %>% 
-  rename("sample_id"=bcr_patient_barcode, "age"=age_at_diagnosis,"ER"=er_status_by_ihc, "PR"= pr_status_by_ihc, "HER2"=her2_status_by_ihc,"morph"=icd_o_3_histology,"stage"= ajcc_pathologic_tumor_stage, "size"=ajcc_tumor_pathologic_pt) |> 
-  select(sample_id, age, gender, morph, size, stage, ER, PR, HER2)
+  rename("sample_id"=bcr_patient_barcode, "age"=age_at_diagnosis,"ER"=er_status_by_ihc, "PR"= pr_status_by_ihc, "HER2"=her2_status_by_ihc,"morph"=icd_o_3_histology,"stage"= ajcc_pathologic_tumor_stage, "tumor_size"=ajcc_tumor_pathologic_pt) |> 
+  select(sample_id, age, gender, morph, tumor_size, stage, ER, PR, HER2)
 
 tcga$HER2 <- tcga$HER2 |>  str_replace("\\[Not Evaluated\\]","n/a")
 tcga$ER <- tcga$ER |>  str_replace("\\[Not Evaluated\\]","n/a")
@@ -246,48 +246,85 @@ tcga$stage <- tcga$stage |>  str_replace("\\[Not Evaluated\\]","n/a")
 tcga <- tcga |> filter(sample_id %in% valid_samples)
 ```
 
+```{r}
+qimprove <- read_excel("data/histopath_info_qimprove_samples_submitted_id_for_Cristina_eta_Amy.xlsx",col_names = TRUE)
+
+qimprove$HER2 <- qimprove$HER2 |>  str_replace("Not_provided","n/a") |> str_replace("\\+","Positive") |> str_replace("-","Negative")
+qimprove$ER <- qimprove$ER |>  str_replace("Not_provided","n/a") |> str_replace("\\+","Positive") |> str_replace("-","Negative")
+qimprove$PR <- qimprove$PR |>  str_replace("Not_provided","n/a") |> str_replace("\\+","Positive") |> str_replace("-","Negative")
+qimprove$Grade <- qimprove$Grade |>  str_replace("Not_provided","n/a")
+qimprove$Morphology <- qimprove$Morphology |>  str_replace("Not_provided","n/a") 
+
+qimprove <- qimprove |> rename("age"=`Age at diagnosis`, "sample_id"=`GenomiQa id`, "gender"=Gender, "morph"=Morphology, "stage"=Grade, "tumor_size"=`Tumour size (mm; clinical or imaging)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, tumor_size, stage, ER, PR, HER2)
+```
+
+
 Different studies have their own framework to record tumour histopath information, need to consolidate them.
 
 ```{r, warning=FALSE, echo=TRUE}
-df <- rbind(familial, magic, tcga) |> replace_na(list(stage="n/a", size="n/a", gender="n/a", morph="n/a",age="n/a",ER="n/a",PR="n/a", HER2="n/a"))
-stage_tags <-  df$stage |> unique() 
-stage_clean<- c("III", "II","n/a", "I", "III", "II", "I", "II/III", "II","III", "I","II", "I", "III","III", "X")
-names(stage_clean) <- stage_tags
+df <- rbind(familial, magic, tcga, qimprove) |> replace_na(list(stage="n/a", size="n/a", gender="n/a", morph="n/a",age="n/a",ER="n/a",PR="n/a", HER2="n/a"))
 
-morph_tags <- df$morph |> unique()
-morph_clean <-c("Invasive Carcinoma of No Special Type",
-                      "Metaplastic Carcinoma",
-                      "Medullary Carcinoma",
-                      "Ductal Carcinoma in Situ (DCIS)",
-                      "Invasive Lobular Carcinoma (ILC)",
-                      "Medullary Carcinoma",
-                      "Mucinous Carcinoma",
-                      "High Grade DCIS", 
-                      "Invasive Ductal Carcinoma (IDC)", 
-                      "Lobular Carcinoma",
-                      "Mucinous Carcinoma",
-                      "HGDCIS with microinvasion",
-                      "Mixed IDC and Lobular Carcinoma",
-                      "Other",
-                      "Mixed IDC and Lobular Carcinoma",
-                      "Invasive Ductal Carcinoma, mixed",
-                      "Metaplastic Carcinoma",
-                      "Mucinous Carcinoma",
-                      "Mucinous Carcinoma",
-                      "Apocrine Carcinoma",
-                      "Invasive Ductal Carcinoma, mixed",
-                      "Invasive Lobular Carcinoma",
-                      "Metaplastic Carcinoma",
-                      "Mixed Ductal and Lobular Carcinoma",
-                      "Medullary Carcinoma")
-names(morph_clean) <- morph_tags
+stage_map <- list(
+  "Grade III" = "III",
+  "Grade II" = "II",
+  "Grade I" = "I",
+  "3" = "III",
+  "2" = "II",
+  "1" = "I",
+  "2 to 3" = "II/III",
+  "Stage IIA" = "II",
+  "Stage IIIC" = "III",
+  "Stage IA" = "I",
+  "Stage IIB" = "II",
+  "Stage I" = "I",
+  "Stage IIIA" = "III",
+  "Stage III" = "III",
+  "Stage X" = "n/a",
+  "n/a" = "n/a"
+)
+
+morphology_map <- list(
+  "IC NST" = "Invasive_Carcinoma_NST",
+  "Metaplastic" = "Metaplastic_Carcinoma",
+  "Medullary" = "Medullary_Carcinoma",
+  "DCIS" = "Ductal_Carcinoma_In_Situ",
+  "ILC" = "Invasive_Lobular_Carcinoma",
+  "MDL" = "Medullary_Carcinoma",  # Assuming abbreviation
+  "Mucinous" = "Mucinous_Carcinoma",
+  "HGDCIS" = "High_Grade_DCIS",
+  "IDC" = "Invasive_Ductal_Carcinoma",
+  "Lobular Ca" = "Invasive_Lobular_Carcinoma",
+  "Mucinous Ca" = "Mucinous_Carcinoma",
+  "HGDCIS with microinvasion" = "Invasive_Ductal_Carcinoma",
+  "IDC&Lobular" = "Mixed_IDC_and_Lobular_Carcinoma",
+  "other" = "Other",
+  "mixed IDC& lobular Ca" = "Mixed_IDC_and_Lobular_Carcinoma",
+  "IDC & other" = "Mixed_IDC_and_Other",
+  "metaplastic Ca" = "Metaplastic_Carcinoma",
+  "mucinous Ca" = "Mucinous_Carcinoma",
+  "mucinous Ca8480" = "Mucinous_Carcinoma",
+  "invasive Ca with apocrine features" = "Invasive_Carcinoma_with_Apocrine_Features",
+  "8500/3" = "Invasive_Ductal_Carcinoma",
+  "8520/3" = "Invasive_Lobular_Carcinoma",
+  "8575/3" = "Metaplastic_Carcinoma",
+  "8523/3" = "Lobular_Carcinoma",
+  "8510/3" = "Medullary_Carcinoma",
+  "Invasive_cancer" = "Invasive_Carcinoma",
+  "Invasive_ductal_carcinoma" = "Invasive_Ductal_Carcinoma",
+  "n/a" = "n/a"
+)
 
 df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ifelse(toupper(gender) %in% c("FEMALE","F"), "Female", "n/a"))) |> 
-  mutate(tcode=case_when(startsWith(size,"T") ~ size, 
-                         as.integer(size)>1 & as.integer(size)<=5 ~ "T1a", 
-                         as.integer(size)>5 & as.integer(size)<=10 ~ "T1b", 
-                         as.integer(size)>10 & as.integer(size) <=20 ~ "T1c", 
-                         as.integer(size)>20 & as.integer(size) <=50 ~ "T2",
-                         as.integer(size)>50 ~ "T3")) |> 
-  mutate(stage=stage_clean[stage], morphology=morph_clean[morph]) |> head(n=10) |>  gt() |> as_raw_html()
+  mutate(tumor_size_category=case_when(startsWith(tumor_size,"T") ~ tumor_size, 
+                         as.numeric(tumor_size)>1 & as.numeric(tumor_size)<=5 ~ "T1a", 
+                         as.numeric(tumor_size)>5 & as.numeric(tumor_size)<=10 ~ "T1b", 
+                         as.numeric(tumor_size)>10 & as.numeric(tumor_size) <=20 ~ "T1c", 
+                         as.numeric(tumor_size)>20 & as.numeric(tumor_size) <=50 ~ "T2",
+                         as.numeric(tumor_size)>50 ~ "T3",
+                         TRUE ~ "n/a"),
+         stage_clean=stage_map[stage], 
+         morphology_clean=morphology_map[morph],
+         sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id),
+         morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & stage=="III", "High_Grade_DCIS", morphology_clean))|>  gt() |> as_raw_html()
 ```
