@@ -23,7 +23,7 @@ knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = F
 
 In this analysis, we included whole-genome sequencing (WGS) data of pairs of primary tumour and normal blood (germline) samples from breast cancer patients in four study cohorts. After filtering samples with low quality and sequencing depth, we had 350 tumours from:
 
-- [Familial breast cancer](https://pubmed.ncbi.nlm.nih.gov/31090900/) (N=77)
+- [Familial breast cancer](https://doi.org/10.1093/annonc/mdz132) (N=77)
 
 - [TCGA-BRCA](https://portal.gdc.cancer.gov/projects/TCGA-BRCA) (N=96)
 
@@ -185,7 +185,7 @@ google_sheet_supp1 <- sv_df |> group_by(sample_id) |> summarise(total_sv=n()) |>
   mutate(sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id)) |> 
   dplyr::rename("Sample ID" = sample_id,"SV" = total_sv, "Tumour depth" = t_depth, "Normal depth" = n_depth, "Tumour purity" = ascatPurityScore, "TMB" = TMB_nonSyn, "SNV" = snv, "Indel" = indel, "SV" = total_sv) 
 
-google_sheet_supp1 |> 
+google_sheet_supp1 |> head(10) |> 
   gt() |> as_raw_html()
 #google_sheet_supp1 |> write_tsv("results/supplementary-table1.tsv")
 ```
@@ -326,5 +326,5 @@ df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ifelse(to
          stage_clean=stage_map[stage], 
          morphology_clean=morphology_map[morph],
          sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id),
-         morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & stage=="III", "High_Grade_DCIS", morphology_clean))|>  gt() |> as_raw_html()
+         morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & stage=="III", "High_Grade_DCIS", morphology_clean))|>  head(10) |> gt() |> as_raw_html()
 ```
