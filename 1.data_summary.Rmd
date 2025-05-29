@@ -216,8 +216,8 @@ familial$ER <- familial$ER |>  str_replace("NA","n/a")
 familial$PR <- familial$PR |>  str_replace("NA","n/a")
 familial$Grade <- familial$Grade |>  str_replace("NA","n/a")
 
-familial <- familial |> rename("age"=`Age at diagnosis (years)`, "sample_id"=Donor, "gender"=Gender, "morph"=`Morphology coding`, "stage"=Grade, "tumor_size"=`Tumour Size (mm)`) |> mutate(age=as.integer(age)) |> 
-  select(sample_id, age, gender, morph, tumor_size, stage, ER, PR, HER2)
+familial <- familial |> rename("age"=`Age at diagnosis (years)`, "sample_id"=Donor, "gender"=Gender, "morph"=`Morphology coding`, "grade"=Grade, "tumor_size"=`Tumour Size (mm)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, tumor_size, grade, ER, PR, HER2)
 ```
 
 ```{r}
@@ -228,20 +228,20 @@ magic$ER <- magic$ER |>  str_replace("NA","n/a") |> str_replace("pos","Positive"
 magic$PR <- magic$PR |>  str_replace("NA","n/a") |> str_replace("pos","Positive") |> str_replace("neg","Negative")
 magic$Grade <- magic$Grade |>  str_replace("NA","n/a") 
 
-magic <- magic |> rename("age"=`Age at diagnosis`, "sample_id"=`MAGIC ID`, "gender"=Gender, "morph"=Morphology, "stage"=Grade, "tumor_size"=`Tumour size(mm)`) |> mutate(age=as.integer(age)) |> 
-  select(sample_id, age, gender, morph, tumor_size, stage, ER, PR, HER2)
+magic <- magic |> rename("age"=`Age at diagnosis`, "sample_id"=`MAGIC ID`, "gender"=Gender, "morph"=Morphology, "grade"=Grade, "tumor_size"=`Tumour size(mm)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, tumor_size, grade, ER, PR, HER2)
 ```
 
 
 ```{r}
 tcga <- read_tsv("data/TCGA-BRCA_116.txt") |> select(bcr_patient_barcode, gender,age_at_diagnosis,er_status_by_ihc, pr_status_by_ihc,her2_status_by_ihc,icd_o_3_histology, ajcc_pathologic_tumor_stage, ajcc_tumor_pathologic_pt) %>% 
-  rename("sample_id"=bcr_patient_barcode, "age"=age_at_diagnosis,"ER"=er_status_by_ihc, "PR"= pr_status_by_ihc, "HER2"=her2_status_by_ihc,"morph"=icd_o_3_histology,"stage"= ajcc_pathologic_tumor_stage, "tumor_size"=ajcc_tumor_pathologic_pt) |> 
-  select(sample_id, age, gender, morph, tumor_size, stage, ER, PR, HER2)
+  rename("sample_id"=bcr_patient_barcode, "age"=age_at_diagnosis,"ER"=er_status_by_ihc, "PR"= pr_status_by_ihc, "HER2"=her2_status_by_ihc,"morph"=icd_o_3_histology,"stage"= ajcc_pathologic_tumor_stage, "tumor_size"=ajcc_tumor_pathologic_pt) |> mutate(grade="n/a") |> 
+  select(sample_id, age, gender, morph, tumor_size, grade, ER, PR, HER2)
 
 tcga$HER2 <- tcga$HER2 |>  str_replace("\\[Not Evaluated\\]","n/a")
 tcga$ER <- tcga$ER |>  str_replace("\\[Not Evaluated\\]","n/a")
 tcga$PR <- tcga$PR |>  str_replace("\\[Not Evaluated\\]","n/a")
-tcga$stage <- tcga$stage |>  str_replace("\\[Not Evaluated\\]","n/a")
+#tcga$stage <- tcga$stage |>  str_replace("\\[Not Evaluated\\]","n/a")
 
 tcga <- tcga |> filter(sample_id %in% valid_samples)
 ```
@@ -255,17 +255,17 @@ qimprove$PR <- qimprove$PR |>  str_replace("Not_provided","n/a") |> str_replace(
 qimprove$Grade <- qimprove$Grade |>  str_replace("Not_provided","n/a")
 qimprove$Morphology <- qimprove$Morphology |>  str_replace("Not_provided","n/a") 
 
-qimprove <- qimprove |> rename("age"=`Age at diagnosis`, "sample_id"=`GenomiQa id`, "gender"=Gender, "morph"=Morphology, "stage"=Grade, "tumor_size"=`Tumour size (mm; clinical or imaging)`) |> mutate(age=as.integer(age)) |> 
-  select(sample_id, age, gender, morph, tumor_size, stage, ER, PR, HER2)
+qimprove <- qimprove |> rename("age"=`Age at diagnosis`, "sample_id"=`GenomiQa id`, "gender"=Gender, "morph"=Morphology, "grade"=Grade, "tumor_size"=`Tumour size (mm; clinical or imaging)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, tumor_size, grade, ER, PR, HER2)
 ```
 
 
 Different studies have their own framework to record tumour histopath information, need to consolidate them.
 
 ```{r, warning=FALSE, echo=TRUE}
-df <- rbind(familial, magic, tcga, qimprove) |> replace_na(list(stage="n/a", size="n/a", gender="n/a", morph="n/a",age="n/a",ER="n/a",PR="n/a", HER2="n/a"))
+df <- rbind(familial, magic, tcga, qimprove) |> replace_na(list(grade="n/a", size="n/a", gender="n/a", morph="n/a",age="n/a",ER="n/a",PR="n/a", HER2="n/a"))
 
-stage_map <- list(
+grade_map <- list(
   "Grade III" = "III",
   "Grade II" = "II",
   "Grade I" = "I",
@@ -273,14 +273,6 @@ stage_map <- list(
   "2" = "II",
   "1" = "I",
   "2 to 3" = "II/III",
-  "Stage IIA" = "II",
-  "Stage IIIC" = "III",
-  "Stage IA" = "I",
-  "Stage IIB" = "II",
-  "Stage I" = "I",
-  "Stage IIIA" = "III",
-  "Stage III" = "III",
-  "Stage X" = "n/a",
   "n/a" = "n/a"
 )
 
@@ -316,15 +308,16 @@ morphology_map <- list(
 )
 
 df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ifelse(toupper(gender) %in% c("FEMALE","F"), "Female", "n/a"))) |> 
-  mutate(tumor_size_category=case_when(startsWith(tumor_size,"T") ~ tumor_size, 
+  mutate(tumor_size_category=case_when(startsWith(tumor_size,"T") ~ tumor_size,
+                                       tumor_size == "40+55" ~ "T3",
                                        as.numeric(tumor_size)>1 & as.numeric(tumor_size)<=5 ~ "T1a", 
                                        as.numeric(tumor_size)>5 & as.numeric(tumor_size)<=10 ~ "T1b", 
                                        as.numeric(tumor_size)>10 & as.numeric(tumor_size) <=20 ~ "T1c", 
                                        as.numeric(tumor_size)>20 & as.numeric(tumor_size) <=50 ~ "T2",
                                        as.numeric(tumor_size)>50 ~ "T3",
                                        TRUE ~ "n/a"),
-         stage_clean=stage_map[stage] |> unlist(), 
+         grade_clean=grade_map[grade] |> unlist(), 
          morphology_clean=morphology_map[morph] |> unlist(),
          sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id),
-         morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & stage=="III", "High_Grade_DCIS", morphology_clean))|>  head(10) |> gt() |> as_raw_html()
+         morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & grade=="III", "High_Grade_DCIS", morphology_clean))|> head(10) |>  gt() |> as_raw_html()
 ```
