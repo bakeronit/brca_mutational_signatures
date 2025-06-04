@@ -19,6 +19,7 @@ The study evaluates tumor HRD profiles from breast cancer samples to support int
 
 - 📄 [Data resources](1.data_summary.md) 
 - 🔧 [FFPE sample signature correction](FFPE_correction.md)
+- 📋 [Pathology and HR status](7.pathology.md)
 
 ### Germline variants and BRCA1/2 classfication
 

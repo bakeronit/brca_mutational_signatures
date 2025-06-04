@@ -181,7 +181,7 @@ color_fig <- list(
   hrd_type=c( brewer.pal(3,"Blues") |> rev(),"#EFC000"),
   gender=c("#DEEBF7", "#0073C2"),
   age_group=c("#EEF6FFFF","#B6D6FDFF","#2D6FF0FF", "#1D42B8FF", "#172553FF") |> rev(),
-  grade_clean = c( "#ffc857","#e9724c","#c5283d","lightgrey"),
+  grade_clean = c( "#ffee32","#e9724c","#c5283d","lightgrey"),
   `ER/PR/HER2`=c("#f77f00","#3772ff", "lightgrey")
 )
 
@@ -214,7 +214,7 @@ fact_levels <- list(
 generate_row <- function(row_name, df) {
   geom_tile(data=df |> filter(field==row_name) %>% droplevels, 
             mapping=aes(x=sample_id, y=field, fill=factor(level, levels=fact_levels[[row_name]])), 
-            color="black")
+            color="black", linewidth = 0.1)
 }
 
 plot <- ggplot() + 
@@ -241,6 +241,8 @@ for (i in levels(plot_df_long$field)){
 }
 
 plot
+
+ggsave("p1.pdf", plot, width = 16, height = 6)
 ```
 
 ```{r, warning=FALSE, fig.height=3, fig.width=7}
@@ -277,11 +279,12 @@ p2
 
 ```{r, fig.width=16, fig.height=16}
 p3 <- plot_df |> select(p_hrd, tnbc) |> filter(tnbc!='n/a') |> 
-  ggplot(aes(x=tnbc, y=p_hrd)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test") + theme_Publication() + labs(x="",y="HRD probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
+  ggplot(aes(x=tnbc, y=p_hrd)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test", label.x = 1, label.y = 1.1) + theme_Publication() + labs(x="",y="HRD probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
 
 p4 <- plot_df  |> filter(hr_status=="HR_deficient") |> select(p_BRCA1, tnbc) |> filter(tnbc!='n/a') |> 
-  ggplot(aes(x=tnbc, y=p_BRCA1)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test") + theme_Publication() + labs(x="",y="HRD BRCA1 type probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
+  ggplot(aes(x=tnbc, y=p_BRCA1)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test", label.x = 1, label.y = 1.1) + theme_Publication() + labs(x="",y="HRD BRCA1 type probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
 
-
+p <- (p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15)))
+ggsave("p2.pdf", p, width = 16, height = 5)
 plot/(p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15))) + plot_layout(heights=c(0.65, 0.35)) + plot_annotation(tag_levels = "A")
 ```

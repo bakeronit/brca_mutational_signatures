@@ -17,6 +17,7 @@ evidence-based support for variant classification in clinical genetics.
 
 - 📄 [Data resources](1.data_summary.md)
 - 🔧 [FFPE sample signature correction](FFPE_correction.md)
+- 📋 [Pathology and HR status](7.pathology.md)
 
 ### Germline variants and BRCA1/2 classfication
 
