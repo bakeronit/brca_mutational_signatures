@@ -1,0 +1,287 @@
+---
+title: "Pathology and HR status"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(here)
+library(tidyverse)
+library(readxl)
+library(gt)
+library(ggnewscale)
+library(RColorBrewer)
+library(patchwork)
+library(rstatix)
+source("scripts/plot_utils.R")
+knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path ="cache/")
+```
+
+## The tumour pathology information
+
+We collected pathology information for samples including: Grade, ER, PR, HER2 etc and added this to supplementary table 4.
+
+```{r}
+hrd_df <- read_tsv("results/supplementary-table4.tsv")
+```
+
+```{r}
+familial <- read_excel("data/Supplementary_Table1.xlsx",skip = 1, col_names = TRUE) 
+
+familial$HER2 <- familial$HER2 |>  str_replace("NA","n/a")
+familial$ER <- familial$ER |>  str_replace("NA","n/a")
+familial$PR <- familial$PR |>  str_replace("NA","n/a")
+familial$Grade <- familial$Grade |>  str_replace("NA","n/a")
+
+familial <- familial |> rename("age"=`Age at diagnosis (years)`, "sample_id"=Donor, "gender"=Gender, "morph"=`Morphology coding`, "grade"=Grade, "tumor_size"=`Tumour Size (mm)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, tumor_size, grade, ER, PR, HER2)
+```
+
+```{r}
+magic <- read_excel("data/Copy of histopath_info_MAGIC_samples_for_Cristina_etal_LD 150525.xlsx",col_names = TRUE)
+
+magic$HER2 <- magic$HER2 |>  str_replace("NA","n/a") |> str_replace("pos","Positive") |> str_replace("neg","Negative")
+magic$ER <- magic$ER |>  str_replace("NA","n/a") |> str_replace("pos","Positive") |> str_replace("neg","Negative")
+magic$PR <- magic$PR |>  str_replace("NA","n/a") |> str_replace("pos","Positive") |> str_replace("neg","Negative")
+magic$Grade <- magic$Grade |>  str_replace("NA","n/a") 
+
+magic <- magic |> rename("age"=`Age at diagnosis`, "sample_id"=`MAGIC ID`, "gender"=Gender, "morph"=Morphology, "grade"=Grade, "tumor_size"=`Tumour size(mm)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, tumor_size, grade, ER, PR, HER2)
+```
+
+
+```{r}
+tcga <- read_tsv("data/TCGA-BRCA_116.txt") |> select(bcr_patient_barcode, gender,age_at_diagnosis,er_status_by_ihc, pr_status_by_ihc,her2_status_by_ihc,icd_o_3_histology, ajcc_pathologic_tumor_stage, ajcc_tumor_pathologic_pt) %>% 
+  rename("sample_id"=bcr_patient_barcode, "age"=age_at_diagnosis,"ER"=er_status_by_ihc, "PR"= pr_status_by_ihc, "HER2"=her2_status_by_ihc,"morph"=icd_o_3_histology,"stage"= ajcc_pathologic_tumor_stage, "tumor_size"=ajcc_tumor_pathologic_pt) |> mutate(grade="n/a") |> 
+  select(sample_id, age, gender, morph, tumor_size, grade, ER, PR, HER2)
+
+tcga$HER2 <- tcga$HER2 |>  str_replace("\\[Not Evaluated\\]","n/a") |> str_replace("\\[Not Available\\]","n/a") 
+tcga$ER <- tcga$ER |>  str_replace("\\[Not Evaluated\\]","n/a")
+tcga$PR <- tcga$PR |>  str_replace("\\[Not Evaluated\\]","n/a")
+#tcga$stage <- tcga$stage |>  str_replace("\\[Not Evaluated\\]","n/a")
+
+tcga <- tcga |> filter(sample_id %in% hrd_df$sample_id)
+```
+
+```{r}
+qimprove <- read_excel("data/histopath_info_qimprove_samples_submitted_id_for_Cristina_eta_Amy.xlsx",col_names = TRUE)
+
+qimprove$HER2 <- qimprove$HER2 |>  str_replace("Not_provided","n/a") |> str_replace("\\+","Positive") |> str_replace("-","Negative")
+qimprove$ER <- qimprove$ER |>  str_replace("Not_provided","n/a") |> str_replace("\\+","Positive") |> str_replace("-","Negative")
+qimprove$PR <- qimprove$PR |>  str_replace("Not_provided","n/a") |> str_replace("\\+","Positive") |> str_replace("-","Negative")
+qimprove$Grade <- qimprove$Grade |>  str_replace("Not_provided","n/a")
+qimprove$Morphology <- qimprove$Morphology |>  str_replace("Not_provided","n/a") 
+
+qimprove <- qimprove |> rename("age"=`Age at diagnosis`, "sample_id"=`GenomiQa id`, "gender"=Gender, "morph"=Morphology, "grade"=Grade, "tumor_size"=`Tumour size (mm; clinical or imaging)`) |> mutate(age=as.integer(age)) |> 
+  select(sample_id, age, gender, morph, tumor_size, grade, ER, PR, HER2)
+```
+
+
+Different studies have their own framework to record tumour histopath information, need to consolidate them.
+
+```{r, warning=FALSE, echo=TRUE}
+df <- rbind(familial, magic, tcga, qimprove) |> replace_na(list(grade="n/a", size="n/a", gender="n/a", morph="n/a",age="n/a",ER="n/a",PR="n/a", HER2="n/a"))
+
+grade_map <- list(
+  "Grade III" = "Grade III",
+  "Grade II" = "Grade II",
+  "Grade I" = "Grade I",
+  "3" = "Grade III",
+  "2" = "Grade II",
+  "1" = "Grade I",
+  "2 to 3" = "Grade III",
+  "n/a" = "n/a"
+)
+
+morphology_map <- list(
+  "IC NST" = "Invasive_Carcinoma_NST",
+  "Metaplastic" = "Metaplastic_Carcinoma",
+  "Medullary" = "Medullary_Carcinoma",
+  "DCIS" = "Ductal_Carcinoma_In_Situ",
+  "ILC" = "Invasive_Lobular_Carcinoma",
+  "MDL" = "Medullary_Carcinoma",  # Assuming abbreviation
+  "Mucinous" = "Mucinous_Carcinoma",
+  "HGDCIS" = "High_Grade_DCIS",
+  "IDC" = "Invasive_Ductal_Carcinoma",
+  "Lobular Ca" = "Invasive_Lobular_Carcinoma",
+  "Mucinous Ca" = "Mucinous_Carcinoma",
+  "HGDCIS with microinvasion" = "Invasive_Ductal_Carcinoma",
+  "IDC&Lobular" = "Mixed_IDC",
+  "other" = "Other",
+  "mixed IDC& lobular Ca" = "Mixed_IDC",
+  "IDC & other" = "Mixed_IDC",
+  "metaplastic Ca" = "Metaplastic_Carcinoma",
+  "mucinous Ca" = "Mucinous_Carcinoma",
+  "mucinous Ca8480" = "Mucinous_Carcinoma",
+  "invasive Ca with apocrine features" = "Invasive_Carcinoma",
+  "8500/3" = "Invasive_Ductal_Carcinoma",
+  "8520/3" = "Invasive_Lobular_Carcinoma",
+  "8575/3" = "Metaplastic_Carcinoma",
+  "8523/3" = "Lobular_Carcinoma",
+  "8510/3" = "Medullary_Carcinoma",
+  "Invasive_cancer" = "Invasive_Carcinoma",
+  "Invasive_ductal_carcinoma" = "Invasive_Ductal_Carcinoma",
+  "n/a" = "n/a"
+)
+
+df <- df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ifelse(toupper(gender) %in% c("FEMALE","F"), "Female", "n/a"))) |> 
+  mutate(tumor_size_category=case_when(startsWith(tumor_size,"T") ~ tumor_size,
+                                       tumor_size == "40+55" ~ "T3",
+                                       as.numeric(tumor_size)>1 & as.numeric(tumor_size)<=5 ~ "T1a", 
+                                       as.numeric(tumor_size)>5 & as.numeric(tumor_size)<=10 ~ "T1b", 
+                                       as.numeric(tumor_size)>10 & as.numeric(tumor_size) <=20 ~ "T1c", 
+                                       as.numeric(tumor_size)>20 & as.numeric(tumor_size) <=50 ~ "T2",
+                                       as.numeric(tumor_size)>50 ~ "T3",
+                                       TRUE ~ "n/a"),
+         grade_clean=grade_map[grade] |> unlist(), 
+         morphology_clean=morphology_map[morph] |> unlist(),
+         sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id),
+         morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & grade=="III", "High_Grade_DCIS", morphology_clean))
+
+df |> head(10) |>  gt() |> as_raw_html()
+```
+
+## The correlation of pathology and HR status
+
+We would like to exam that whether ER, TNBC status, grade, etc are all significantly correlated with HR status.
+
+```{r}
+df2 <- hrd_df |> select(sample_id,p_BRCA1, p_hrd, hr_status, hrd_type, Probability, HRDsum) |> left_join(df) |> mutate(age_group=case_when(age<40 ~ "<40",
+                                  age<50 ~"40-50",
+                                  age<60~"50-60",
+                                  age<70~"60-70",
+                                  TRUE~">70"),
+              cohort=case_when(startsWith(sample_id,"FBC")~"Familial",
+                               startsWith(sample_id,"TCGA")~ "TCGA",
+                               startsWith(sample_id,"MAGIC") ~ "MAGIC",
+                               TRUE ~ "Qimprove"),
+              hrdetect=ifelse(Probability>=0.7, "HRD","HRP"),
+              hrdsum=ifelse(HRDsum>=42, "HRD", "HRP"),
+              chord=ifelse(hr_status=="HR_deficient", "HRD","HRP"),
+              hrd_type=case_when(hrd_type=="none"~"HRP",
+                                 hrd_type=="BRCA1_type"~"BRCA1",
+                                 hrd_type=="BRCA2_type"~"BRCA2",
+                                 TRUE~"Undetermined"),
+              ER=ifelse(ER=="Indeterminate","n/a",ER),
+              HER2=ifelse(HER2=="Equivocal","n/a",HER2)) 
+
+plot_df_long <- df2 |> select(chord, hrd_type, hrdetect, hrdsum,sample_id, gender, age_group, grade_clean, ER, PR, HER2) 
+
+sample_id_levels <- plot_df_long |> arrange(chord, hrd_type) |> pull(sample_id)
+
+plot_df_long <- plot_df_long |> pivot_longer(-sample_id,names_to = "field",values_to = "level")
+plot_df_long$field <- factor(plot_df_long$field,levels = c("hrdsum","hrdetect","chord","hrd_type","gender","age_group","grade_clean", "ER","PR","HER2") %>% rev)
+plot_df_long$sample_id <- factor(plot_df_long$sample_id, levels=sample_id_levels)
+```
+
+```{r, fig.width=10, fig.height=5}
+color_fig <- list(
+  hrdsum=c("#0073C2","#EFC000"),
+  hrdetect=c("#0073C2","#EFC000"),
+  chord=c("#0073C2","#EFC000"),
+  hrd_type=c( brewer.pal(3,"Blues") |> rev(),"#EFC000"),
+  gender=c("#DEEBF7", "#0073C2"),
+  age_group=c("#EEF6FFFF","#B6D6FDFF","#2D6FF0FF", "#1D42B8FF", "#172553FF") |> rev(),
+  grade_clean = c( "#ffc857","#e9724c","#c5283d","lightgrey"),
+  `ER/PR/HER2`=c("#f77f00","#3772ff", "lightgrey")
+)
+
+legend_names <- list(
+  chord="HR status",
+  hrdetect="HR status",
+  hrdsum="HR status",
+  hrd_type="HRD type (CHORD)",
+  age_group="Age group",
+  gender="Sex",
+  grade_clean="Grade",
+  ER="ER",
+  PR="PR",
+  HER2="HER2"
+)
+
+fact_levels <- list(
+  chord=c("HRD", "HRP"),
+  hrdsum=c("HRD", "HRP"),
+  hrdetect=c("HRD", "HRP"),
+  hrd_type=c("BRCA1","BRCA2","Undetermined","HRP"),
+  gender=c("Female","Male"),
+  age_group=c("<40","40-50","50-60","60-70",">70") |> rev(),
+  grade_clean=c("Grade I","Grade II","Grade III","n/a"),
+  ER=c("Positive","Negative","n/a"),
+  PR=c("Positive","Negative","n/a"),
+  HER2=c("Positive","Negative","n/a")
+)
+
+generate_row <- function(row_name, df) {
+  geom_tile(data=df |> filter(field==row_name) %>% droplevels, 
+            mapping=aes(x=sample_id, y=field, fill=factor(level, levels=fact_levels[[row_name]])), 
+            color="black")
+}
+
+plot <- ggplot() + 
+  scale_y_discrete(limits=levels(plot_df_long$field), labels=c("HER2","PR","ER","Grade","Age group","Sex","HRD type","CHORD","HRDetect","HRDsum")) +
+  theme_minimal(base_size = 14)+
+  theme(legend.position="bottom",
+        legend.direction  = "vertical",
+        panel.grid.major = element_blank(),
+        axis.text.x = element_blank()) + 
+  labs(x="",y="")
+
+
+for (i in levels(plot_df_long$field)){
+  if(i %in% c("HER2","PR","ER")){
+    colors <- color_fig[["ER/PR/HER2"]]
+    color_name <- "ER/PR/HER2"
+  }else{
+    colors <-color_fig[[i]]
+    color_name <- legend_names[[i]]
+  }
+  plot <- plot + generate_row(i,plot_df_long) +
+    scale_fill_manual(values = colors, name=color_name)+ 
+    new_scale_fill()
+}
+
+plot
+```
+
+```{r, warning=FALSE, fig.height=3, fig.width=7}
+plot_df <- df2 |> mutate(tnbc=ifelse(ER=="Negative" & PR=="Negative" & HER2=="Negative", "yes", "no"),
+                     tnbc=ifelse(ER=="n/a" | PR=="n/a" | HER2=="n/a", "n/a", tnbc)) 
+
+get_correlation <- function(df, var_hrd, var_pathology) {
+  test_tbl <- df |> select(var_hrd, var_pathology) |> filter(get(var_pathology)!="n/a" & get(var_hrd)!="cannot_be_determined") |> table()
+  chi_test <- test_tbl |> chisq.test()
+  p_value <- chi_test$p.value
+  cramer_value <- test_tbl |> cramer_v(test_tbl)
+  
+  data.frame("x" = var_pathology, "y" = var_hrd, "chi" = p_value, "cramer" = cramer_value)
+}
+
+p2 <- c("chord","hrdetect", "hrdsum", "hrd_type") |> map_df(\(y)( c("ER", "PR", "HER2", "grade_clean", "tnbc") |> map_df(\(x) get_correlation(plot_df, y, x)) ) ) |> 
+  mutate(p=case_when(chi<0.0001 ~ "****",
+                     chi<0.001 ~ "***",
+                     chi<0.01 ~ "**",
+                     chi<0.05 ~ "*",
+                     TRUE ~ ""),
+         font_color=ifelse(cramer<0.3, "white", "black")) |> 
+  ggplot(aes(x=x, y=y, fill=cramer)) + geom_tile() + geom_text(aes(label=paste0(round(cramer, 2), p),color=font_color)) + 
+  scale_fill_viridis_c(option = "magma") + 
+  scale_color_manual(values = c("black","white"), guide="none")  + 
+  scale_x_discrete(limits=c("ER","PR","HER2","tnbc", "grade_clean"), labels=c("ER","PR","HER2","TNBC","Grade")) +
+  scale_y_discrete(limits=c("hrd_type","chord","hrdetect","hrdsum"), labels=c("HRD type", "CHORD", "HRDetect","HRDsum")) +
+  labs(x="", y="", fill="Cramér's V") +
+  theme_Publication() +
+  theme(legend.text = element_text(size=8.8))
+
+p2
+```
+
+```{r, fig.width=16, fig.height=16}
+p3 <- plot_df |> select(p_hrd, tnbc) |> filter(tnbc!='n/a') |> 
+  ggplot(aes(x=tnbc, y=p_hrd)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test") + theme_Publication() + labs(x="",y="HRD probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
+
+p4 <- plot_df  |> filter(hr_status=="HR_deficient") |> select(p_BRCA1, tnbc) |> filter(tnbc!='n/a') |> 
+  ggplot(aes(x=tnbc, y=p_BRCA1)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test") + theme_Publication() + labs(x="",y="HRD BRCA1 type probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
+
+
+plot/(p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15))) + plot_layout(heights=c(0.65, 0.35)) + plot_annotation(tag_levels = "A")
+```
