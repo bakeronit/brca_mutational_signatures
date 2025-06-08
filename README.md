@@ -1,4 +1,11 @@
 
+![made-with-R](https://img.shields.io/badge/Made%20with-R-1f425f.svg)
+![GitHub last
+commit](https://img.shields.io/github/last-commit/bakeronit/brca_mutational_signatures)
+[![Docker
+Image](https://img.shields.io/badge/docker-image-blue)](https://hub.docker.com/r/bakeronit/rstudio_hpc_r4.4)
+[![CC0](https://licensebuttons.net/p/zero/1.0/88x31.png)](https://creativecommons.org/publicdomain/zero/1.0/)
+
 # Integrating breast tumor homologous recombination deficiency status to aid germline BRCA1 and BRCA2 variant classification
 
 This repository contains the scripts, R code, and documentation used in
@@ -17,7 +24,6 @@ evidence-based support for variant classification in clinical genetics.
 
 - 📄 [Data resources](1.data_summary.md)
 - 🔧 [FFPE sample signature correction](FFPE_correction.md)
-- 📋 [Pathology and HR status](7.pathology.md)
 
 ### Germline variants and BRCA1/2 classfication
 
@@ -29,11 +35,12 @@ evidence-based support for variant classification in clinical genetics.
 - 🔍 [HRD prediction using HRDetect](2.hrdetect.md)
 - 🎯 [HRD prediction using CHORD](3.chord.md)
 - ⚖️ [HRD prediction method comparison](5.hrdprediction_comparison.md)
+- 📋 [Histopathology data and HR status correlation](7.pathology.md)
 
-To quantify the informativeness of HRD prediction for BRCA1/2
-classification, we employed a likelihood ratio (LR) approach. In main
-results, we used CHORD-predicted HRD status, we calculated LRs for
-BRCA1/2.
+To quantify how informative HRD prediction is for classifying BRCA1/2
+status, we used a likelihood ratio (LR) approach. In the main analysis,
+we used CHORD-predicted HRD status to calculate LRs for HRD, BRCA1 and
+BRCA2 separately.
 
 ## R Session Info
 

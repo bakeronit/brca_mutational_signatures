@@ -18,7 +18,7 @@ knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = F
 
 ## The tumour pathology information
 
-We collected pathology information for samples including: Grade, ER, PR, HER2 etc and added this to supplementary table 4.
+We collected tumor histopathology data comprising histological grade and hormone receptor status (ER, PR, HER2, and the combined triple-negative breast cancer, TNBC) and included in the final supp-table4
 
 ```{r}
 hrd_df <- read_tsv("results/supplementary-table4.tsv")
@@ -76,7 +76,7 @@ qimprove <- qimprove |> rename("age"=`Age at diagnosis`, "sample_id"=`GenomiQa i
 ```
 
 
-Different studies have their own framework to record tumour histopath information, need to consolidate them.
+Different studies have their own framework to record tumour histopath information, need to harmonise them.
 
 ```{r, warning=FALSE, echo=TRUE}
 df <- rbind(familial, magic, tcga, qimprove) |> replace_na(list(grade="n/a", size="n/a", gender="n/a", morph="n/a",age="n/a",ER="n/a",PR="n/a", HER2="n/a"))
@@ -137,12 +137,13 @@ df <- df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ife
          sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id),
          morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & grade=="III", "High_Grade_DCIS", morphology_clean))
 
-df |> head(10) |>  gt() |> as_raw_html()
+df |> select(-c(grade, tumor_size, morph )) |> rename("Grade"=grade_clean, "Morphology" = morphology_clean, "Tumor size category" = tumor_size_category, "Sample id" = sample_id, "Age" = age, "Sex" = gender) |> 
+  head(10) |>  gt() |> as_raw_html()
 ```
 
 ## The correlation of pathology and HR status
 
-We would like to exam that whether ER, TNBC status, grade, etc are all significantly correlated with HR status.
+We would like to exam that whether ER, TNBC status, grade, etc are all significantly correlated with HR status. Samples with missing histopathology data for a given variable were excluded from corresponding analysis. To exam the association between tumor pathological measures (grade and hormone receptor status), we performed chi-square tests. Effect size was estimated using Cramér’s V to assess the strength of association. Correlations between HR status, as predicted by the different tools, and tumor histopathology markers (grade and hormone receptor status) were analyzed using Cramér’s V to assess the significance of associations. In addition, for CHORD we compared the BRCA1-type HRD probability scores between TNBC and non-TNBC samples using the Wilcoxon rank-sum tests.
 
 ```{r}
 df2 <- hrd_df |> select(sample_id,p_BRCA1, p_hrd, hr_status, hrd_type, Probability, HRDsum) |> left_join(df) |> mutate(age_group=case_when(age<40 ~ "<40",
@@ -240,9 +241,7 @@ for (i in levels(plot_df_long$field)){
     new_scale_fill()
 }
 
-plot
-
-ggsave("p1.pdf", plot, width = 16, height = 6)
+ggsave("figures/supp-fig-p1.pdf", plot, width = 16, height = 6)
 ```
 
 ```{r, warning=FALSE, fig.height=3, fig.width=7}
@@ -273,8 +272,6 @@ p2 <- c("chord","hrdetect", "hrdsum", "hrd_type") |> map_df(\(y)( c("ER", "PR", 
   labs(x="", y="", fill="Cramér's V") +
   theme_Publication() +
   theme(legend.text = element_text(size=8.8))
-
-p2
 ```
 
 ```{r, fig.width=16, fig.height=16}
@@ -285,6 +282,6 @@ p4 <- plot_df  |> filter(hr_status=="HR_deficient") |> select(p_BRCA1, tnbc) |> 
   ggplot(aes(x=tnbc, y=p_BRCA1)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test", label.x = 1, label.y = 1.1) + theme_Publication() + labs(x="",y="HRD BRCA1 type probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
 
 p <- (p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15)))
-ggsave("p2.pdf", p, width = 16, height = 5)
-plot/(p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15))) + plot_layout(heights=c(0.65, 0.35)) + plot_annotation(tag_levels = "A")
+ggsave("figures/supp-fig-p2.pdf", p, width = 16, height = 5)
+plot/(p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15))) + plot_layout(heights=c(0.65, 0.35)) + plot_annotation(tag_levels = "A") & theme(plot.tag = element_text(face="bold"))
 ```
