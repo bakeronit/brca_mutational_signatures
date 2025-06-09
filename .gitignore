@@ -13,3 +13,4 @@ config.yaml
 results/*
 !results/supplementary-table1.tsv
 !results/supplementary-table4.tsv
+figures/*.pdf

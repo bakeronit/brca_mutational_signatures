@@ -136,7 +136,9 @@ df <- df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ife
          morphology_clean=morphology_map[morph] |> unlist(),
          sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id),
          morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & grade=="III", "High_Grade_DCIS", morphology_clean))
+```
 
+```{r}
 df |> select(-c(grade, tumor_size, morph )) |> rename("Grade"=grade_clean, "Morphology" = morphology_clean, "Tumor size category" = tumor_size_category, "Sample id" = sample_id, "Age" = age, "Sex" = gender) |> 
   head(10) |>  gt() |> as_raw_html()
 ```
@@ -241,7 +243,7 @@ for (i in levels(plot_df_long$field)){
     new_scale_fill()
 }
 
-ggsave("figures/supp-fig-p1.pdf", plot, width = 16, height = 6)
+ggsave("figures/supp-fig5-p1.pdf", plot, width = 16, height = 6)
 ```
 
 ```{r, warning=FALSE, fig.height=3, fig.width=7}
@@ -274,14 +276,16 @@ p2 <- c("chord","hrdetect", "hrdsum", "hrd_type") |> map_df(\(y)( c("ER", "PR", 
   theme(legend.text = element_text(size=8.8))
 ```
 
-```{r, fig.width=16, fig.height=16}
+```{r supp-fig5, fig.width=16, fig.height=16}
 p3 <- plot_df |> select(p_hrd, tnbc) |> filter(tnbc!='n/a') |> 
   ggplot(aes(x=tnbc, y=p_hrd)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test", label.x = 1, label.y = 1.1) + theme_Publication() + labs(x="",y="HRD probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
 
 p4 <- plot_df  |> filter(hr_status=="HR_deficient") |> select(p_BRCA1, tnbc) |> filter(tnbc!='n/a') |> 
   ggplot(aes(x=tnbc, y=p_BRCA1)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test", label.x = 1, label.y = 1.1) + theme_Publication() + labs(x="",y="HRD BRCA1 type probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
 
-p <- (p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15)))
-ggsave("figures/supp-fig-p2.pdf", p, width = 16, height = 5)
+
 plot/(p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15))) + plot_layout(heights=c(0.65, 0.35)) + plot_annotation(tag_levels = "A") & theme(plot.tag = element_text(face="bold"))
+
+p <- (p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15)))
+ggsave("figures/supp-fig5-p2.pdf", p, width = 16, height = 5)
 ```
