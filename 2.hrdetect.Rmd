@@ -65,14 +65,14 @@ df_hrd <- read_tsv("results/hrdetect_hrdprediction_355.tsv") |>
 p_hrdetect_threshold <- df_hrd |> 
   ggplot(aes(x=sample_id, y=Probability )) + geom_point(alpha=.6, color="#3B4992") + 
   geom_hline(yintercept = 0.7, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=0.78, label="cutoff=0.7", size=3.6, color="black") +
-  labs(x="Tumour samples", y= stringr::str_wrap("HRD probability (HRDetect)", 15)) +
+  labs(x="Tumor samples", y= stringr::str_wrap("HRD probability (HRDetect)", 15)) +
   theme_Publication() +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) 
 
 p_hrdetect_threshold
 ```
 
-**Figure 1: The HRD probability scores for all tumour samples**
+**Figure 1: The HRD probability scores for all tumor samples**
 
 ```{r hrdetect_fig2, fig.height=4, fig.width=9}
 df_hrd |> 
@@ -84,7 +84,7 @@ df_hrd |>
   ggplot(aes(x=sample_id, y=Probability )) + geom_point(alpha=.6, color="#3B4992") + 
   geom_hline(yintercept = 0.7, color="grey", lty=2, linewidth=1) + facet_grid(~cohort, scales = "free_x",space = "free_x") + 
   theme_Publication() +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) + labs(x="Tumour samples", y="HRD probability (HRDetect)")
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) + labs(x="Tumor samples", y="HRD probability (HRDetect)")
 ```
 
 **Figure 2: The HRD probability scores for tumour samples in four cohorts**
@@ -157,7 +157,7 @@ df_hrd_magic |> left_join(df_hrd_magic_corrected, by="tumour_id") |>
   mutate(name=factor(name, levels=c("Original", "FFPE-corrected"))) |> 
   ggplot(aes(x=sample_id,y=value, color=name)) + geom_point(alpha=.4, size=1.6) +
   geom_hline(yintercept = 0.7, color="grey", lty=2, linewidth=1) +
-  labs(x="Tumour samples",y="HRD Probability (HRDetect)", color="") + theme_Publication() +
+  labs(x="Tumor samples",y="HRD Probability (HRDetect)", color="") + theme_Publication() +
   scale_color_manual(values=c("#3B4992", "#EE0000")) +
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x=element_blank())
 ```

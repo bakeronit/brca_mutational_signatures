@@ -101,7 +101,7 @@ pa<-
   ggplot(aes(x=sample_id, y=HRDsum)) +
   geom_point(alpha=.6, color="#36454F") + 
   geom_hline(yintercept = 42, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=50, label="cutoff=42", size=3.6, color="black") +
-  theme_Publication() + labs(x="Tumour samples",y="Score", title="HRDsum") + 
+  theme_Publication() + labs(x="Tumor samples",y="Score", title="HRDsum") + 
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank(), plot.title = element_text(face="plain", size=rel(0.8),hjust = 0.5, vjust=-4)) 
 
 pb<- 
@@ -111,7 +111,7 @@ pb<-
   ggplot(aes(x=sample_id, y=Probability)) +
   geom_point(alpha=.6, color="#36454F") + 
   geom_hline(yintercept = 0.7, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=0.78, label="cutoff=0.7", size=3.6, color="black") +
-  theme_Publication() + labs(x="Tumour samples",y="Probability", title="HRDetect") + 
+  theme_Publication() + labs(x="Tumor samples",y="Probability", title="HRDetect") + 
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank(), plot.title = element_text(face="plain", size=rel(0.8),hjust = 0.5, vjust=-4))
 
 
@@ -122,7 +122,7 @@ pc<-
   ggplot(aes(x=sample_id, y=p_hrd)) +
   geom_point(alpha=.6, color="#36454F") + 
   geom_hline(yintercept = 0.5, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=0.57, label="cutoff=0.5", size=3.6, color="black") +
-  theme_Publication() + labs(x="Tumour samples",y="Probability", title="CHORD") + 
+  theme_Publication() + labs(x="Tumor samples",y="Probability", title="CHORD") + 
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank(), plot.title = element_text(face="plain", size=rel(0.8),hjust = 0.5, vjust=-4))
 
 pa/pb/pc

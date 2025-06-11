@@ -54,7 +54,7 @@ df_hrd <- df_chord[1:6] |> mutate(cohort=case_when(
 ```{r chord_fig1, fig.width=4, fig.height=4}
 p_chord_threshold<- ggplot(df_hrd, aes(x=sample_id, y=p_hrd)) + geom_point(alpha=.6, color="#3B4992") + 
   geom_hline(yintercept = 0.5, color="grey", lty=2, linewidth=1) + annotate("text", x=260, y=0.58, label="cutoff=0.5", size=3.6, color="black") +
-  theme_Publication() + labs(x="Tumour samples",y=stringr::str_wrap("HRD probability (CHORD)", 15)) + 
+  theme_Publication() + labs(x="Tumor samples",y=stringr::str_wrap("HRD probability (CHORD)", 15)) + 
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank())
 
 p_chord_threshold
@@ -66,7 +66,7 @@ p_chord_threshold
 ggplot(df_hrd, aes(x=sample_id, y=p_hrd)) + geom_point(alpha=.6, color="#3B4992") + 
   facet_grid(~cohort, scales = "free_x", space = "free_x") +
   geom_hline(yintercept = 0.5, color="grey", lty=2, linewidth=1) +
-  theme_Publication()  + labs(x="Tumour samples",y="HRD probability (CHORD)") + 
+  theme_Publication()  + labs(x="Tumor samples",y="HRD probability (CHORD)") + 
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank())
 ```
 
@@ -133,7 +133,7 @@ inner_join(chord_magic, chord_magic_ffpe, by="sample_id") |>
   ggplot(aes(x=sample_id,y=value, color=name)) + 
   geom_point(alpha=.4, size=1.6) +
   geom_hline(yintercept = 0.5, color="grey", lty=2, linewidth=1) +
-  labs(x="Tumour samples",y="HRD Probability (CHORD)", color="") + theme_Publication() + 
+  labs(x="Tumor samples",y="HRD Probability (CHORD)", color="") + theme_Publication() + 
   scale_color_manual(values=c("#3B4992", "#EE0000")) +
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x=element_blank())
 ```

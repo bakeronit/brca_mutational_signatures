@@ -68,7 +68,7 @@ p_hrdsum_threshold <- df_hrdsum |>
   ggplot(aes(x=sample_id, y=`HRD-sum`)) +
   geom_point(alpha=.6, color="#3B4992") + 
   geom_hline(yintercept = 42, color="grey", lty=2, linewidth=1) +  annotate("text", x=260, y=50, label="cutoff=42", size=3.6, color="black") +
-  theme_Publication() + labs(x="Tumour samples",y=stringr::str_wrap("HRDsum score", 10)) + 
+  theme_Publication() + labs(x="Tumor samples",y=stringr::str_wrap("HRDsum score", 10)) + 
   theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank())
 
 p_hrdsum_threshold
