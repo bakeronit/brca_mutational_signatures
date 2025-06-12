@@ -1,9 +1,11 @@
 R Session Info
 ================
 
-All analyses are implemented in **R (≥4.4.1)** with a R-studio docker
-container available [here](). Alternatively, you can reproduce the R
-environment with the [renv.lock](renv.lock) file:
+All analyses are implemented in **R (4.4.1)** with a R-studio docker
+container available
+[here](https://hub.docker.com/r/bakeronit/rstudio_hpc_r4.4).
+Alternatively, you can reproduce the R environment with the
+[renv.lock](renv.lock) file:
 
 ``` r
 install.packages("renv")

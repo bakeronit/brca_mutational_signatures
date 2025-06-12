@@ -40,10 +40,11 @@ evidence-based support for variant classification in clinical genetics.
 To quantify how informative HRD prediction is for classifying BRCA1/2
 status, we used a likelihood ratio (LR) approach. In the main analysis,
 we used CHORD-predicted HRD status to calculate LRs for HRD, BRCA1 and
-BRCA2 separately.
+BRCA2 separately. The LRs were used to assign an ACMG/AMP evidence
+strength category and points using Bayesian conversions.
 
 ## R Session Info
 
-All analyses are implemented in **R (≥4.4.1)** with Key package
+All analyses are implemented in **R (4.4.1)** with Key package
 dependencies and session details are documented in the
 [rsession_info](rsession_info.md) file.
