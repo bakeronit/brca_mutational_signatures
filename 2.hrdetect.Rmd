@@ -16,6 +16,8 @@ extra_tumours <- config$extra_tumours
 knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path = "cache/")
 ```
 
+The HRDetect method uses the mutational signatures to predict BRCA1/2 deficiency as a surrogate for HR deficiency, including base substitution signatures 3 and 8, indel patterns, SVs and the copy number-based score HRD loss of heterozygosity (LOH). The `HRDetect_pipeline` function of [signature.tools.lib](https://github.com/Nik-Zainal-Group/signature.tools.lib) was used for the HRDetect implementation with 1000 bootstraps and “Breast” specific signatures. A score of >0.7 is considered to represent deficiency.
+
 ```{r}
 cosmicv2_signatures  <- read_table("data/COSMIC/COSMIC_v2_SBS_GRCh38.txt") |> column_to_rownames("Type")
 cosmicv2_signatures <- cosmicv2_signatures[match(rownames(COSMIC30_subs_signatures), rownames(cosmicv2_signatures)),]
