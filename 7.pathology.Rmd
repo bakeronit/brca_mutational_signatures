@@ -139,8 +139,7 @@ df <- df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ife
 ```
 
 ```{r}
-df |> select(-c(grade, tumor_size, morph )) |> rename("Grade"=grade_clean, "Morphology" = morphology_clean, "Tumor size category" = tumor_size_category, "Sample id" = sample_id, "Age" = age, "Sex" = gender) |> 
-  head(10) |>  gt() |> as_raw_html()
+
 ```
 
 ## The correlation of pathology and HR status
@@ -166,6 +165,10 @@ df2 <- hrd_df |> select(sample_id,p_BRCA1, p_hrd, hr_status, hrd_type, Probabili
                                  TRUE~"Undetermined"),
               ER=ifelse(ER=="Indeterminate","n/a",ER),
               HER2=ifelse(HER2=="Equivocal","n/a",HER2)) 
+
+
+df2 |> select(c(sample_id, age_group, gender, ER, PR, HER2, tumor_size_category, grade_clean, morphology_clean)) |> rename("Grade"=grade_clean, "Morphology" = morphology_clean, "Tumor size category" = tumor_size_category, "Sample id" = sample_id, "Age Group" = age_group, "Sex" = gender) |> 
+  head(10) |>  gt() |> as_raw_html()
 
 plot_df_long <- df2 |> select(chord, hrd_type, hrdetect, hrdsum,sample_id, gender, age_group, grade_clean, ER, PR, HER2) 
 
