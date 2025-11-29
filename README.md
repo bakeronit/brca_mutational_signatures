@@ -27,7 +27,7 @@ evidence-based support for variant classification in clinical genetics.
 
 ### Germline variants and BRCA1/2 classfication
 
-- 🧬 [Germline classification](6.germline_classification.md)
+- 🧬 [Germline classification](6.germline_classification_rev.md)
 
 ### HRD analysis
 
@@ -36,6 +36,9 @@ evidence-based support for variant classification in clinical genetics.
 - 🎯 [HRD prediction using CHORD](3.chord.md)
 - ⚖️ [HRD prediction method comparison](5.hrdprediction_comparison.md)
 - 📋 [Histopathology data and HR status correlation](7.pathology.md)
+- 📓 [HRD types and mutational landscape](x.revision.Rmd)*
+
+*New analysis for revision.
 
 To quantify how informative HRD prediction is for classifying BRCA1/2
 status, we used a likelihood ratio (LR) approach. In the main analysis,

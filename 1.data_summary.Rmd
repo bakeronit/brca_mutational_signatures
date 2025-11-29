@@ -185,9 +185,14 @@ google_sheet_supp1 <- sv_df |> group_by(sample_id) |> summarise(total_sv=n()) |>
   mutate(sample_id=ifelse(startsWith(sample_id,"MAGIC"), magic_id_conversion[sample_id], sample_id)) |> 
   dplyr::rename("Sample ID" = sample_id,"SV" = total_sv, "Tumour depth" = t_depth, "Normal depth" = n_depth, "Tumour purity" = ascatPurityScore, "TMB" = TMB_nonSyn, "SNV" = snv, "Indel" = indel, "SV" = total_sv) 
 
+## add a column to indicate which sample has RNA seq data.
+tpm_df <- read_tsv("../x.revision_misc/brca12_tpm.tsv")
+google_sheet_supp1 <- google_sheet_supp1 |> left_join(tpm_df, by=c("Sample ID" = "sample_id")) |> mutate(RNAseq=ifelse(is.na(BRCA1_TPM), "No", "Yes")) |> select(-c(BRCA1_TPM, BRCA2_TPM))
+
+
 google_sheet_supp1 |> head(10) |> 
   gt() |> as_raw_html()
-#google_sheet_supp1 |> write_tsv("results/supplementary-table1.tsv")
+#google_sheet_supp1 |> write_tsv("results/supplementary-table1.rev.tsv")
 ```
 
 ```{r, eval=FALSE}

@@ -1,0 +1,154 @@
+---
+title: "Revision"
+output: github_document
+---
+
+```{r setup0, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE}
+library(here)
+library(tidyverse)
+library(RColorBrewer)
+library(ggnewscale)
+library(ggpubr)
+library(patchwork)
+source("scripts/plot_utils.R")
+knitr::opts_chunk$set(root.dir = here(), comment = NA, echo = FALSE, message = FALSE, warnings = FALSE, include = TRUE, fig.align = 'center', fig.retina = 2, fig.path = "figures/", cache.path = "cache/")
+```
+We included a new supplementary figure to better display the consistency between tumour HRD type and the mutional landscape in samples.
+
+```{r}
+germline_classification_order <- c("positive_brca1","positive_brca2","additional_brca1","additional_brca2","exclude","negative_brca1/2")
+
+df <- read_tsv("results/brca_germline_clf_tumor_hrd.add_sv.add_somatic.rev.cf6.tsv") |> 
+  select(sample_id, hrd_type, updated_germline_classification, BRCA1, BRCA2, somatic_mutations ) |> 
+  mutate(BRCA1=str_split_i(BRCA1, ":", 1), BRCA2=str_split_i(BRCA2, ":", 1), BRCA1=ifelse(BRCA1=="HighGain", "Gain", BRCA1),BRCA2=ifelse(BRCA2=="HighGain", "Gain", BRCA2) ) 
+
+brca1_df <- df |> filter(hrd_type=="BRCA1_type") |> select(-c(BRCA2, hrd_type)) |> 
+  mutate(somatic_mutations=ifelse(grepl("BRCA1", somatic_mutations), "yes","no"))
+brca1_sample_levels <- brca1_df |> arrange(match(updated_germline_classification, germline_classification_order), match(BRCA1, c("Del", "Het","cnLOH","Gain"))) |> pull(sample_id)
+
+brca2_df <- df |> filter(hrd_type=="BRCA2_type") |> select(-c(BRCA1, hrd_type)) |> 
+  mutate(somatic_mutations=ifelse(grepl("BRCA2", somatic_mutations), "yes","no"))
+brca2_sample_levels <- brca2_df |> arrange(match(updated_germline_classification, germline_classification_order), match(BRCA2, c("Del", "Het","cnLOH","Gain"))) |> pull(sample_id)
+```
+
+
+```{r}
+brca1_df_long <- brca1_df |> pivot_longer(-sample_id,names_to = "field",values_to = "level")
+brca1_df_long$sample_id <- factor(brca1_df_long$sample_id, levels=brca1_sample_levels)
+brca1_df_long$field <- factor(brca1_df_long$field,levels = c("updated_germline_classification","BRCA1","somatic_mutations") |> rev())
+
+brca2_df_long <- brca2_df |> pivot_longer(-sample_id,names_to = "field",values_to = "level")
+brca2_df_long$sample_id <- factor(brca2_df_long$sample_id, levels=brca2_sample_levels)
+brca2_df_long$field <- factor(brca2_df_long$field,levels = c("updated_germline_classification","BRCA2","somatic_mutations") |> rev())
+
+```
+
+```{r}
+fact_levels <- list(
+  updated_germline_classification=c("positive_brca1", "positive_brca2","additional_brca1","additional_brca2", "exclude", "negative_brca1/2"),
+  BRCA1=c("Del","Het","cnLOH","Gain"),
+  BRCA2=c("Del","Het","cnLOH","Gain"),
+  somatic_mutations=c("yes","no")
+)
+
+color_fig <- list(
+  updated_germline_classification=c("#00468B", "#ED0000", "#007A91", "#33AFC6","#FDAF91", "#ADB6B6" ) |> set_names(fact_levels[["updated_germline_classification"]]),
+  BRCA1=c("#a6cee3","#EEEEEE","#fdbf6f","#1f78b4") |> set_names(fact_levels[["BRCA1"]]),
+  BRCA2=c("#a6cee3","#EEEEEE","#fdbf6f","#1f78b4") |> set_names(fact_levels[["BRCA2"]]),
+  somatic_mutations=c("#333333","lightgrey") |> set_names(fact_levels[["somatic_mutations"]])
+)
+
+legend_names <- list(
+  updated_germline_classification="Individual classification",
+  BRCA1="BRCA1/2 copy number",
+  BRCA2="BRCA1/2 copy number",
+  somatic_mutations="BRCA1/2 somatic mutation"
+)
+
+fill_labels <- list(
+  updated_germline_classification=c("BRCA1 positive","BRCA2 positive", "BRCA1 VUS", "BRCA2 VUS","Exclude", "BRCA1/2 negative") |> set_names(fact_levels[["updated_germline_classification"]]),
+  BRCA1=c("Deletion","Heterozygous","LOH","Gain") |> set_names(fact_levels[["BRCA1"]]),
+  BRCA2=c("Deletion","Heterozygous","LOH","Gain") |> set_names(fact_levels[["BRCA2"]]),
+  somatic_mutations=c("Yes","No")|> set_names(fact_levels[["somatic_mutations"]])
+)
+
+generate_row <- function(row_name, df) {
+  geom_tile(data=df |> filter(field==row_name) %>% droplevels, 
+            mapping=aes(x=sample_id, y=field, fill=factor(level, levels=fact_levels[[row_name]])), 
+            color="black", linewidth = 0.2)
+}
+```
+
+```{r}
+plot1 <- ggplot() + 
+  scale_y_discrete(limits=levels(brca1_df_long$field), labels=c( "BRCA1 somatic mutation", "BRCA1 copy number","Individual classification")) +
+  theme_minimal(base_size = 12)+
+  theme(legend.position="bottom",
+        legend.direction  = "vertical",
+        panel.grid.major = element_blank(),
+        axis.text.x = element_blank()) + 
+  labs(x="",y="") 
+
+
+for (i in levels(brca1_df_long$field)){
+  colors <-color_fig[[i]]
+  color_name <- legend_names[[i]]
+  color_label <- fill_labels[[i]]
+  plot1 <- plot1 + generate_row(i,brca1_df_long) +
+    scale_fill_manual(values = colors, name=color_name, labels=color_label)+ 
+    new_scale_fill()
+}
+```
+
+
+```{r}
+plot2 <- ggplot() + 
+  scale_y_discrete(limits=levels(brca2_df_long$field), labels=c( "BRCA2 somatic mutation", "BRCA2 copy number", "Individual classification")) +
+  theme_minimal(base_size = 12)+
+  theme(legend.position="bottom",
+        legend.direction  = "vertical",
+        panel.grid.major = element_blank(),
+        axis.text.x = element_blank()) + 
+  labs(x="",y="") 
+
+
+for (i in levels(brca2_df_long$field)){
+  colors <-color_fig[[i]]
+  color_name <- legend_names[[i]]
+  color_label <- fill_labels[[i]]
+  plot2 <- plot2 + generate_row(i,brca2_df_long) +
+    scale_fill_manual(values = colors, name=color_name, labels=color_label)+ 
+    new_scale_fill()
+}
+```
+
+```{r supplementary-figure-rev-cf6, fig.height=8.8, fig.width=9}
+plot1 / (plot2 + plot_spacer() + plot_layout(widths = c(2, 1)))
+
+#p1_legend <- ggpubr::get_legend(plot1)
+#ggsave("figures/legend1.png", p1_legend)
+#p2_legend <- ggpubr::get_legend(plot2)
+#ggsave("figures/legend2.png", p2_legend)
+ggsave("figures/supplementary-figure-x_A.rev.pdf", plot1 + theme(legend.position = "none"), height = 1, width = 9)
+ggsave("figures/supplementary-figure-x_B.rev.pdf", plot2 + theme(legend.position = "none"), height = 1, width = 6.6)
+```
+
+```{r}
+tpm_df <- read_tsv("../x.revision_misc/brca12_tpm.tsv") |> left_join(df, by="sample_id") |> select(sample_id, BRCA1_TPM, BRCA2_TPM, hrd_type, updated_germline_classification, BRCA1, BRCA2) |> 
+  mutate(hrd_type=ifelse(hrd_type=="none", "HRP", hrd_type)) |> filter(hrd_type!="cannot_be_determined") |> 
+  pivot_longer(c(BRCA1_TPM, BRCA2_TPM), names_to = "gene", values_to = "TPM") 
+
+my_blues <- brewer.pal(3,"Blues") |> rev()
+my_blues[1:2] <- c("#005B96", "#00A8E1")
+
+ggplot(tpm_df, aes(x=hrd_type, y=TPM, fill=hrd_type)) + 
+  geom_boxplot( width=.6,alpha=.8) + 
+  #geom_point(data=tpm_df |> filter(sample_id %in% c("FBC060116", "TCGA-AR-A256", "TCGA-A2-A04P"), gene=="BRCA2_TPM"), alpha=0.6) + 
+  #ggrepel::geom_text_repel(data=tpm_df |> filter(sample_id %in% c("FBC060116", "TCGA-AR-A256", "TCGA-A2-A04P"), gene=="BRCA2_TPM"), aes(label=sample_id), size=2, fontface="bold",nudge_x = .2, nudge_y = -.2) + 
+  scale_fill_manual(values=c(my_blues[1:2], "#EFC000"), labels=c("HRD(BRCA1)","HRD(BRCA2)","HRP")) +
+  scale_x_discrete(labels=c("HRD(BRCA1)","HRD(BRCA2)","HRP")) + 
+  facet_grid(~gene, labeller = labeller(gene=c("BRCA1_TPM"="BRCA1", "BRCA2_TPM"="BRCA2"))) + theme_Publication() + labs(x="", y="TPM", fill="HR status")
+
+ggsave("figures/supplementary-figure-x_C.pdf")
+```
+

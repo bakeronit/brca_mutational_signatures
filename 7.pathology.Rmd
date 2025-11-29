@@ -138,9 +138,6 @@ df <- df |> mutate(gender=ifelse(toupper(gender) %in% c("MALE","M"), "Male", ife
          morphology_clean=ifelse(morphology_clean=="Ductal_Carcinoma_In_Situ" & grade=="III", "High_Grade_DCIS", morphology_clean))
 ```
 
-```{r}
-
-```
 
 ## The correlation of pathology and HR status
 
@@ -167,9 +164,22 @@ df2 <- hrd_df |> select(sample_id,p_BRCA1, p_hrd, hr_status, hrd_type, Probabili
               HER2=ifelse(HER2=="Equivocal","n/a",HER2)) 
 
 
-df2 |> select(c(sample_id, age_group, gender, ER, PR, HER2, tumor_size_category, grade_clean, morphology_clean)) |> rename("Grade"=grade_clean, "Morphology" = morphology_clean, "Tumor size category" = tumor_size_category, "Sample id" = sample_id, "Age Group" = age_group, "Sex" = gender) |> 
+df2 |> select(c(sample_id, age_group, gender, ER, PR, HER2, tumor_size_category, grade_clean, morphology_clean)) |> rename("Grade"=grade_clean, "Morphology" = morphology_clean, "Tumor size category" = tumor_size_category, "Donor ID" = sample_id, "Age Group" = age_group, "Sex" = gender) |> 
   head(10) |>  gt() |> as_raw_html()
 
+df2 |> select(sample_id, age_group, gender, grade_clean, ER, PR, HER2) |> 
+  mutate(grade=case_when(grade_clean=="Grade I" ~ 1,
+                               grade_clean=="Grade II" ~ 2,
+                               grade_clean=="Grade III" ~ 3,
+                               TRUE ~ NA),
+         tnbc=case_when(ER=="Negative" & PR=="Negative" & HER2=="Negative" ~ "yes",
+                        ER=="Positive" | PR=="Positive" | HER2=="Positive" ~ "no",
+                        TRUE ~ "n/a")) |> 
+  select(sample_id, age_group, gender, grade, ER, PR, HER2, tnbc) #|> 
+  #write_tsv("results/pathology.tsv")
+```
+
+```{r, fig.width=10, fig.height=5}
 plot_df_long <- df2 |> select(chord, hrd_type, hrdetect, hrdsum,sample_id, gender, age_group, grade_clean, ER, PR, HER2) 
 
 sample_id_levels <- plot_df_long |> arrange(chord, hrd_type) |> pull(sample_id)
@@ -177,9 +187,7 @@ sample_id_levels <- plot_df_long |> arrange(chord, hrd_type) |> pull(sample_id)
 plot_df_long <- plot_df_long |> pivot_longer(-sample_id,names_to = "field",values_to = "level")
 plot_df_long$field <- factor(plot_df_long$field,levels = c("hrdsum","hrdetect","chord","hrd_type","gender","age_group","grade_clean", "ER","PR","HER2") %>% rev)
 plot_df_long$sample_id <- factor(plot_df_long$sample_id, levels=sample_id_levels)
-```
 
-```{r, fig.width=10, fig.height=5}
 color_fig <- list(
   hrdsum=c("#0073C2","#EFC000"),
   hrdetect=c("#0073C2","#EFC000"),
@@ -246,12 +254,13 @@ for (i in levels(plot_df_long$field)){
     new_scale_fill()
 }
 
-ggsave("figures/supp-fig5-p1.pdf", plot, width = 16, height = 6)
+#ggsave("figures/supp-fig5-p1.pdf", plot, width = 16, height = 6)
 ```
 
 ```{r, warning=FALSE, fig.height=3, fig.width=7}
-plot_df <- df2 |> mutate(tnbc=ifelse(ER=="Negative" & PR=="Negative" & HER2=="Negative", "yes", "no"),
-                     tnbc=ifelse(ER=="n/a" | PR=="n/a" | HER2=="n/a", "n/a", tnbc)) 
+plot_df <- df2 |> mutate(tnbc=case_when(ER=="Negative" & PR=="Negative" & HER2=="Negative" ~ "yes",
+                        ER=="Positive" | PR=="Positive" | HER2=="Positive" ~ "no",
+                        TRUE ~ "n/a")) 
 
 get_correlation <- function(df, var_hrd, var_pathology) {
   test_tbl <- df |> select(var_hrd, var_pathology) |> filter(get(var_pathology)!="n/a" & get(var_hrd)!="cannot_be_determined") |> table()
@@ -287,8 +296,8 @@ p4 <- plot_df  |> filter(hr_status=="HR_deficient") |> select(p_BRCA1, tnbc) |> 
   ggplot(aes(x=tnbc, y=p_BRCA1)) + geom_boxplot() + geom_point(alpha=0.6) + ggpubr::stat_compare_means(method = "wilcox.test", label.x = 1, label.y = 1.1) + theme_Publication() + labs(x="",y="HRD BRCA1 type probability (CHORD)") + scale_x_discrete(breaks=c("no", "yes"), labels=c("non-TNBC","TNBC"))
 
 
-plot/(p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15))) + plot_layout(heights=c(0.65, 0.35)) + plot_annotation(tag_levels = "A") & theme(plot.tag = element_text(face="bold"))
+plot/(p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15))) + plot_layout(heights=c(0.65, 0.35)) + plot_annotation(tag_levels = "a") & theme(plot.tag = element_text(face="bold", size=20))
 
 p <- (p2+p3+p4 + plot_layout(widths = c(0.7,0.15,0.15)))
-ggsave("figures/supp-fig5-p2.pdf", p, width = 16, height = 5)
+#ggsave("figures/supp-fig5-p2.pdf", p, width = 16, height = 4.6)
 ```

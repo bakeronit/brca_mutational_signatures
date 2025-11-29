@@ -28,7 +28,8 @@ def read_cnv(file):
     with open(file,'rt') as fh:
         for line in fh:
             line = line.strip().split('\t')
-            ascat_call[line[0]] = f"{line[2]}:{line[1]}" # add absolute copynumber 
+            if not ascat_call.get(line[0]) or ascat_call[line[0]] == "NA:NA": # if multiple calls, keep the first one except NA
+                ascat_call[line[0]] = f"{line[2]}:{line[1]}" # add absolute copynumber 
     for gene in gene_order:
         cnv.append(ascat_call[gene])
 
